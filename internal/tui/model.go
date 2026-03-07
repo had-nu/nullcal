@@ -20,6 +20,7 @@ type Model struct {
 	help   help.Model
 
 	dashboard dashboardView
+	viewMode  string // "week", "todo", or "kanban"
 
 	editor editor
 
@@ -35,13 +36,14 @@ type Model struct {
 }
 
 // New creates a new TUI model with the given store and config.
-func New(s *store.Store, cfg *config.Config) Model {
+func New(s *store.Store, cfg *config.Config, viewMode string) Model {
 	return Model{
-		store:  s,
+		store:     s,
 		config:    cfg,
 		keys:      DefaultKeyMap(),
 		help:      help.New(),
-		dashboard: newDashboardView(),
+		dashboard: newDashboardView(viewMode),
+		viewMode:  viewMode,
 	}
 }
 

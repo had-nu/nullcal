@@ -22,7 +22,39 @@ var rootCmd = &cobra.Command{
 
 A local-first TUI calendar and task manager with week view and kanban board.
 Google Calendar sync is an optional, replaceable backend.`,
-	RunE: runTUI,
+	Run: func(cmd *cobra.Command, args []string) {
+		_ = cmd.Help()
+	},
+}
+
+var viewCmd = &cobra.Command{
+	Use:   "view",
+	Short: "Launch a specific TUI view",
+	Long:  "Launch a standalone pane of the nullcal dashboard",
+}
+
+var weekCmd = &cobra.Command{
+	Use:   "week",
+	Short: "Launch the calendar week view",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return runTUI("week")
+	},
+}
+
+var todoCmd = &cobra.Command{
+	Use:   "todo",
+	Short: "Launch the to-do list view",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return runTUI("todo")
+	},
+}
+
+var kanbanCmd = &cobra.Command{
+	Use:   "kanban",
+	Short: "Launch the kanban board view",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return runTUI("kanban")
+	},
 }
 
 // Execute runs the root command.
@@ -35,6 +67,9 @@ func Execute() {
 
 func init() {
 	rootCmd.AddCommand(versionCmd)
+	
+	viewCmd.AddCommand(weekCmd, todoCmd, kanbanCmd)
+	rootCmd.AddCommand(viewCmd)
 }
 
 var versionCmd = &cobra.Command{
@@ -45,7 +80,7 @@ var versionCmd = &cobra.Command{
 	},
 }
 
-func runTUI(_ *cobra.Command, _ []string) error {
+func runTUI(viewMode string) error {
 	// Load configuration.
 	cfg, err := config.Load()
 	if err != nil {
@@ -69,7 +104,7 @@ func runTUI(_ *cobra.Command, _ []string) error {
 	}
 
 	// Start TUI.
-	m := tui.New(db, cfg)
+	m := tui.New(db, cfg, viewMode)
 	p := tea.NewProgram(m, tea.WithAltScreen())
 
 	if _, err := p.Run(); err != nil {
