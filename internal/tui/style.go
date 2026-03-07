@@ -7,17 +7,15 @@ package tui
 
 import "github.com/charmbracelet/lipgloss"
 
-// Color palette. Monochrome with accent for active elements.
+// Color palette. Pure monochrome for CORE retro aesthetic.
 var (
-	colorFg        = lipgloss.Color("#e0e0e0")
-	colorDim       = lipgloss.Color("#666680")
-	colorAccent    = lipgloss.Color("#00d4aa")
-	colorWarning   = lipgloss.Color("#ffaa00")
-	colorBorder    = lipgloss.Color("#333355")
-	colorHeaderBg  = lipgloss.Color("#0f0f23")
-	colorDoneFg    = lipgloss.Color("#44aa44")
-	colorDoingFg   = lipgloss.Color("#dddd44")
-	colorBacklogFg = lipgloss.Color("#8888aa")
+	colorBg       = lipgloss.Color("#000000") // Reserved for terminal bg if needed
+	colorFg       = lipgloss.Color("#ffffff") // Pure white
+	colorDim      = lipgloss.Color("#888888") // Mid gray
+	colorAccent   = lipgloss.Color("#cccccc") // Light gray highlight
+	colorWarning  = lipgloss.Color("#ffffff") // Warning (retro bright white override)
+	colorBorder   = lipgloss.Color("#444444") // Dark gray structural lines
+	colorHeaderBg = lipgloss.Color("#111111") // Slight offset for top bar
 )
 
 // Header styles.
@@ -38,17 +36,17 @@ var (
 	columnStyle = lipgloss.NewStyle().
 			Border(lipgloss.NormalBorder()).
 			BorderForeground(colorBorder).
-			Padding(0, 1)
+			Padding(1, 1)
 
 	activeColumnStyle = lipgloss.NewStyle().
 				Border(lipgloss.NormalBorder()).
 				BorderForeground(colorAccent).
-				Padding(0, 1)
+				Padding(1, 1)
 
 	columnHeaderStyle = lipgloss.NewStyle().
-				Foreground(colorAccent).
+				Foreground(colorFg).
 				Bold(true).
-				Align(lipgloss.Center)
+				Align(lipgloss.Left) // Align left like the sample
 )
 
 // Task item styles.
@@ -57,17 +55,18 @@ var (
 			Foreground(colorFg)
 
 	selectedTaskStyle = lipgloss.NewStyle().
-				Foreground(colorAccent).
+				Foreground(colorBg).
+				Background(colorFg).
 				Bold(true)
 
 	completedTaskStyle = lipgloss.NewStyle().
-				Foreground(colorDoneFg).
+				Foreground(colorDim).
 				Strikethrough(true)
 )
 
 // Routine block style.
 var routineBlockStyle = lipgloss.NewStyle().
-	Foreground(colorWarning).
+	Foreground(colorDim).
 	Bold(true)
 
 // Status bar and help styles.
@@ -83,17 +82,17 @@ var (
 // Editor modal styles.
 var (
 	modalStyle = lipgloss.NewStyle().
-			Border(lipgloss.DoubleBorder()).
-			BorderForeground(colorAccent).
+			Border(lipgloss.NormalBorder()).
+			BorderForeground(colorFg).
 			Padding(1, 2).
 			Width(50)
 
 	inputLabelStyle = lipgloss.NewStyle().
-			Foreground(colorAccent).
+			Foreground(colorFg).
 			Bold(true)
 
 	inputStyle = lipgloss.NewStyle().
-			Foreground(colorFg).
+			Foreground(colorDim).
 			Border(lipgloss.NormalBorder()).
 			BorderForeground(colorBorder).
 			Padding(0, 1)
@@ -101,21 +100,22 @@ var (
 	activeInputStyle = lipgloss.NewStyle().
 				Foreground(colorFg).
 				Border(lipgloss.NormalBorder()).
-				BorderForeground(colorAccent).
+				BorderForeground(colorFg).
 				Padding(0, 1)
 )
 
 // Kanban-specific status label styles.
 var (
 	backlogLabelStyle = lipgloss.NewStyle().
-				Foreground(colorBacklogFg).
+				Foreground(colorDim).
 				Bold(true)
 
 	doingLabelStyle = lipgloss.NewStyle().
-			Foreground(colorDoingFg).
+			Foreground(colorFg).
 			Bold(true)
 
 	doneLabelStyle = lipgloss.NewStyle().
-			Foreground(colorDoneFg).
-			Bold(true)
+			Foreground(colorDim).
+			Bold(true).
+			Strikethrough(true)
 )

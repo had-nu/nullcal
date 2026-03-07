@@ -35,10 +35,24 @@ func renderWeekView(wv weekView, tasks []store.Task, blocks []config.RoutineBloc
 	_, isoWeek := monday.ISOWeek()
 	_ = isoWeek
 
-	// Header.
-	header := headerStyle.Render("nullcal") + "  " +
-		weekInfoStyle.Render(fmt.Sprintf("%s  week %d",
-			monday.Format("2006-01-02"), weekNum))
+	// Big pixelated ASCII header for NULLCAL (inspired by CORE sample)
+	asciiHeader := `
+  _ _ _ _   _       __    __    ___    ____   ___
+ | \ | | | | |     / /   / /   / __\  /  _ \ |  |
+ | \|  | | | |    / /   / /   / /    /  /_\ \|  |
+ |  |  | |_| |   / /__ / /__ / /___ /  ___  \|  |___
+ |_/ \_|\___/   /____//____/ \____//__/   \__\_____/
+`
+	headerTitle := lipgloss.NewStyle().Foreground(colorFg).Bold(true).Render(asciiHeader)
+
+	// Header format: DD.MM.YY and full weekday
+	dateStr := wv.currentWeek.Format("02. 01. 26") // '26' is the hardcoded year format string
+	headerInfo := lipgloss.JoinVertical(lipgloss.Left,
+		headerStyle.Render(fmt.Sprintf("%s    %s", dateStr, strings.ToUpper(wv.currentWeek.Weekday().String()))),
+		lipgloss.NewStyle().Foreground(colorDim).Render(fmt.Sprintf("W%02d    nullcal v1.0", weekNum)),
+	)
+	
+	header := lipgloss.JoinHorizontal(lipgloss.Bottom, headerTitle, "    ", headerInfo) + "\n"
 
 	// Calculate column width.
 	colWidth := (width - 2) / 7
@@ -83,7 +97,7 @@ func renderWeekView(wv weekView, tasks []store.Task, blocks []config.RoutineBloc
 				continue
 			}
 
-			prefix := "  "
+			prefix := "- "
 			style := taskStyle
 			if t.Status == store.TaskStatusDone {
 				prefix = "x "
@@ -102,9 +116,9 @@ func renderWeekView(wv weekView, tasks []store.Task, blocks []config.RoutineBloc
 		}
 
 		content := strings.Join(lines, "\n")
-		style := columnStyle.Width(colWidth - 2).Height(10)
+		style := columnStyle.Width(colWidth - 2).Height(12)
 		if i == wv.focusCol {
-			style = activeColumnStyle.Width(colWidth - 2).Height(10)
+			style = activeColumnStyle.Width(colWidth - 2).Height(12)
 		}
 		columns = append(columns, style.Render(content))
 	}

@@ -3,6 +3,7 @@ package tui
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/charmbracelet/lipgloss"
 
@@ -35,8 +36,23 @@ var kanbanColumnLabels = [3]string{
 
 // renderKanban renders the kanban board with three status columns.
 func renderKanban(kv kanbanView, tasks []store.Task, width int) string {
-	header := headerStyle.Render("nullcal") + "  " +
-		weekInfoStyle.Render("kanban board")
+	// Big pixelated ASCII header for NULLCAL
+	asciiHeader := `
+  _ _ _ _   _       __    __    ___    ____   ___
+ | \ | | | | |     / /   / /   / __\  /  _ \ |  |
+ | \|  | | | |    / /   / /   / /    /  /_\ \|  |
+ |  |  | |_| |   / /__ / /__ / /___ /  ___  \|  |___
+ |_/ \_|\___/   /____//____/ \____//__/   \__\_____/
+`
+	headerTitle := lipgloss.NewStyle().Foreground(colorFg).Bold(true).Render(asciiHeader)
+
+	dateStr := time.Now().Format("02. 01. 26")
+	headerInfo := lipgloss.JoinVertical(lipgloss.Left,
+		headerStyle.Render(fmt.Sprintf("%s    KANBAN", dateStr)),
+		lipgloss.NewStyle().Foreground(colorDim).Render("nullcal v1.0"),
+	)
+	
+	header := lipgloss.JoinHorizontal(lipgloss.Bottom, headerTitle, "    ", headerInfo) + "\n"
 
 	colWidth := (width - 2) / 3
 	if colWidth < 16 {
@@ -69,7 +85,7 @@ func renderKanban(kv kanbanView, tasks []store.Task, width int) string {
 		lines = append(lines, "")
 
 		for j, t := range col {
-			prefix := "  "
+			prefix := "- "
 			style := taskStyle
 			if t.Status == store.TaskStatusDone {
 				prefix = "x "
@@ -84,9 +100,12 @@ func renderKanban(kv kanbanView, tasks []store.Task, width int) string {
 
 			// Show project tag if present.
 			if t.ProjectTag != "" {
-				tag := lipgloss.NewStyle().Foreground(colorDim).Render(
-					fmt.Sprintf("  [%s]", t.ProjectTag))
-				taskLine += "\n" + tag
+				tag := lipgloss.NewStyle().
+					Foreground(colorBg).
+					Background(colorDim).
+					Padding(0, 1).
+					Render(t.ProjectTag)
+				taskLine += "\n  " + tag
 			}
 
 			lines = append(lines, taskLine)
