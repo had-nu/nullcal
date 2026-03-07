@@ -164,7 +164,7 @@ func renderEditor(ed editor) string {
 
 	if ed.err != "" {
 		lines = append(lines, lipgloss.NewStyle().
-			Foreground(colorWarning).Render("! "+ed.err))
+			Foreground(colorOverdue).Render("! "+ed.err))
 		lines = append(lines, "")
 	}
 

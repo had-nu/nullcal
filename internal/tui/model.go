@@ -10,16 +10,6 @@ import (
 
 	"github.com/had-nu/nullcal/internal/config"
 	"github.com/had-nu/nullcal/internal/store"
-	"github.com/had-nu/nullcal/pkg/timeutil"
-)
-
-// ViewMode defines the active view.
-type ViewMode int
-
-// ViewWeek and ViewKanban define the active TUI view.
-const (
-	ViewWeek ViewMode = iota
-	ViewKanban
 )
 
 // Model is the root Bubbletea model for nullcal.
@@ -29,9 +19,8 @@ type Model struct {
 	keys   KeyMap
 	help   help.Model
 
-	view   ViewMode
-	week   weekView
-	kanban kanbanView
+	dashboard dashboardView
+
 	editor editor
 
 	editing    bool
@@ -49,12 +38,10 @@ type Model struct {
 func New(s *store.Store, cfg *config.Config) Model {
 	return Model{
 		store:  s,
-		config: cfg,
-		keys:   DefaultKeyMap(),
-		help:   help.New(),
-		view:   ViewWeek,
-		week:   newWeekView(),
-		kanban: newKanbanView(),
+		config:    cfg,
+		keys:      DefaultKeyMap(),
+		help:      help.New(),
+		dashboard: newDashboardView(),
 	}
 }
 
@@ -109,7 +96,7 @@ func (m Model) View() string {
 
 	// Error display.
 	if m.err != "" {
-		errLine := lipgloss.NewStyle().Foreground(colorWarning).Render("! " + m.err)
+		errLine := lipgloss.NewStyle().Foreground(colorOverdue).Render("! " + m.err)
 		return lipgloss.JoinVertical(lipgloss.Left, main, errLine, status, helpView)
 	}
 
@@ -130,15 +117,17 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, tea.Quit
 
 	case key.Matches(msg, m.keys.SwitchTab):
-		if m.view == ViewWeek {
-			m.view = ViewKanban
-		} else {
-			m.view = ViewWeek
-		}
+		m.dashboard.cycleFocus()
 		return m, nil
 
 	case key.Matches(msg, m.keys.New):
 		m.editor = newEditor()
+		
+		// If focused on Todo list, default the new task to Backlog (implied) and no Due Date
+		if m.dashboard.focus == focusTodo {
+			m.editor.inputs[3].SetValue("") // No due date by default
+		}
+		
 		m.editing = true
 		return m, m.editor.inputs[0].Focus()
 
@@ -161,10 +150,7 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.toggleSelectedTask()
 
 	case key.Matches(msg, m.keys.Move):
-		if m.view == ViewKanban {
-			return m.moveSelectedTask()
-		}
-		return m, nil
+		return m.moveSelectedTask()
 
 	case key.Matches(msg, m.keys.Help):
 		m.showHelp = !m.showHelp
@@ -238,59 +224,9 @@ func (m Model) handleConfirmKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 }
 
 func (m Model) handleNavigation(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	switch m.view {
-	case ViewWeek:
-		switch {
-		case key.Matches(msg, m.keys.Left):
-			m.week.currentWeek = m.week.currentWeek.AddDate(0, 0, -7)
-			return m, m.loadTasks
-		case key.Matches(msg, m.keys.Right):
-			m.week.currentWeek = m.week.currentWeek.AddDate(0, 0, 7)
-			return m, m.loadTasks
-		case key.Matches(msg, m.keys.Up):
-			if m.week.focusTasks > 0 {
-				m.week.focusTasks--
-			}
-		case key.Matches(msg, m.keys.Down):
-			m.week.focusTasks++
-			// Clamp in view render.
-		}
-		// Left/right also navigate days within week with Shift.
-		if msg.String() == "H" {
-			if m.week.focusCol > 0 {
-				m.week.focusCol--
-				m.week.focusTasks = 0
-			}
-		}
-		if msg.String() == "L" {
-			if m.week.focusCol < 6 {
-				m.week.focusCol++
-				m.week.focusTasks = 0
-			}
-		}
-
-	case ViewKanban:
-		switch {
-		case key.Matches(msg, m.keys.Left):
-			if m.kanban.focusCol > 0 {
-				m.kanban.focusCol--
-				m.kanban.focusTask = 0
-			}
-		case key.Matches(msg, m.keys.Right):
-			if m.kanban.focusCol < 2 {
-				m.kanban.focusCol++
-				m.kanban.focusTask = 0
-			}
-		case key.Matches(msg, m.keys.Up):
-			if m.kanban.focusTask > 0 {
-				m.kanban.focusTask--
-			}
-		case key.Matches(msg, m.keys.Down):
-			m.kanban.focusTask++
-		}
-	}
-
-	return m, nil
+	var cmd tea.Cmd
+	m.dashboard, cmd = m.dashboard.update(msg)
+	return m, cmd
 }
 
 func (m Model) toggleSelectedTask() (tea.Model, tea.Cmd) {
@@ -328,47 +264,11 @@ func (m Model) moveSelectedTask() (tea.Model, tea.Cmd) {
 }
 
 func (m Model) selectedTask() *store.Task {
-	switch m.view {
-	case ViewWeek:
-		days := timeutil.DaysOfWeek(m.week.currentWeek)
-		d := days[m.week.focusCol]
-		idx := 0
-		for i := range m.tasks {
-			if m.tasks[i].DueAt == nil {
-				continue
-			}
-			if !sameDay(*m.tasks[i].DueAt, d) {
-				continue
-			}
-			if idx == m.week.focusTasks {
-				return &m.tasks[i]
-			}
-			idx++
-		}
-
-	case ViewKanban:
-		status := kanbanColumns[m.kanban.focusCol]
-		idx := 0
-		for i := range m.tasks {
-			if m.tasks[i].Status == status {
-				if idx == m.kanban.focusTask {
-					return &m.tasks[i]
-				}
-				idx++
-			}
-		}
-	}
-
-	return nil
+	return m.dashboard.selectedTask(m.tasks)
 }
 
 func (m Model) viewMain() string {
-	switch m.view {
-	case ViewKanban:
-		return renderKanban(m.kanban, m.tasks, m.width)
-	default:
-		return renderWeekView(m.week, m.tasks, m.config.RoutineBlocks, m.width)
-	}
+	return m.dashboard.view(m.tasks, m.config.RoutineBlocks, m.width, m.height)
 }
 
 func (m Model) viewWithModal() string {
@@ -396,11 +296,7 @@ func (m Model) viewWithConfirm() string {
 }
 
 func (m Model) statusText() string {
-	viewLabel := "WEEK"
-	if m.view == ViewKanban {
-		viewLabel = "KANBAN"
-	}
-	return fmt.Sprintf("[%s] %d tasks", viewLabel, len(m.tasks))
+	return fmt.Sprintf("[DASHBOARD] %d tasks", len(m.tasks))
 }
 
 // Messages for async operations.
@@ -412,31 +308,10 @@ type tasksLoadedMsg struct {
 type errMsg struct{ error }
 
 func (m Model) loadTasks() tea.Msg {
-	var tasks []store.Task
-	var err error
-
-	switch m.view {
-	case ViewWeek:
-		// Load tasks for the visible week.
-		days := timeutil.DaysOfWeek(m.week.currentWeek)
-
-		// Load all tasks for the week by querying each day.
-		// A more efficient approach would be a range query, but this
-		// is sufficient for MVP.
-		for _, d := range days {
-			dayTasks, e := m.store.ListTasksByDate(d)
-			if e != nil {
-				return errMsg{e}
-			}
-			tasks = append(tasks, dayTasks...)
-		}
-
-	case ViewKanban:
-		tasks, err = m.store.ListTasks()
-		if err != nil {
-			return errMsg{err}
-		}
+	// For the dashboard, load all tasks. We could optimize this later by bounds.
+	tasks, err := m.store.ListTasks()
+	if err != nil {
+		return errMsg{err}
 	}
-
 	return tasksLoadedMsg{tasks: tasks}
 }

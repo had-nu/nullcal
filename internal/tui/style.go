@@ -9,13 +9,17 @@ import "github.com/charmbracelet/lipgloss"
 
 // Color palette. Pure monochrome for CORE retro aesthetic.
 var (
-	colorBg       = lipgloss.Color("#000000") // Reserved for terminal bg if needed
-	colorFg       = lipgloss.Color("#ffffff") // Pure white
-	colorDim      = lipgloss.Color("#888888") // Mid gray
-	colorAccent   = lipgloss.Color("#cccccc") // Light gray highlight
-	colorWarning  = lipgloss.Color("#ffffff") // Warning (retro bright white override)
-	colorBorder   = lipgloss.Color("#444444") // Dark gray structural lines
-	colorHeaderBg = lipgloss.Color("#111111") // Slight offset for top bar
+	colorBg       = lipgloss.Color("#1a1a1a") // Sober dark gray background
+	colorFg       = lipgloss.Color("#e0e0e0") // Light gray text for readability
+	colorDim      = lipgloss.Color("#666666") // Darker gray for less important elements
+	colorAccent   = lipgloss.Color("#ffffff") // Pure white highlight
+	colorBorder   = lipgloss.Color("#333333") // Very dark gray borders
+	colorHeaderBg = lipgloss.Color("#111111") // Slightly darker for headers
+
+	// Semantic colors for task status
+	colorOverdue = lipgloss.Color("#ff5555") // Red
+	colorDueSoon = lipgloss.Color("#ffb86c") // Yellow/Orange
+	colorDone    = lipgloss.Color("#50fa7b") // Green
 )
 
 // Header styles.
@@ -60,8 +64,14 @@ var (
 				Bold(true)
 
 	completedTaskStyle = lipgloss.NewStyle().
-				Foreground(colorDim).
+				Foreground(colorDone).
 				Strikethrough(true)
+
+	overdueTaskStyle = lipgloss.NewStyle().
+				Foreground(colorOverdue)
+
+	dueSoonTaskStyle = lipgloss.NewStyle().
+				Foreground(colorDueSoon)
 )
 
 // Routine block style.
