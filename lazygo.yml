@@ -1,0 +1,32 @@
+# nullcal — lazygo.yml
+# Bootstrap: lazy.go init --from lazygo.yml
+
+project:
+  name: nullcal
+  module_path: github.com/had-nu/nullcal
+  description: "TUI-native calendar and task manager. Google Calendar as a replaceable backend."
+  author: had-nu
+  type: cli
+  license: apache-2.0
+  visibility: public
+  criticality: experimental
+
+features:
+  docker: false
+  github_actions: true
+  linting: true
+  static_analysis: true
+  sast: false
+  dependabot: true
+  tests: true
+
+github:
+  enabled: true
+  topics:
+    - go
+    - tui
+    - calendar
+    - bubbletea
+    - productivity
+    - local-first
+  push_on_init: false

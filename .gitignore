@@ -1,0 +1,39 @@
+# Binaries
+bin/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+nullcal
+
+# Test artifacts
+*.test
+*.out
+coverage.out
+coverage.html
+
+# Build cache
+/vendor/
+
+# Config
+lazygo.yml.bak
+
+# OAuth2 tokens (never commit)
+token.json
+
+# SQLite database
+*.db
+*.db-wal
+*.db-shm
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
