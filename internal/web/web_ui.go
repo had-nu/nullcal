@@ -271,6 +271,7 @@ html,body{height:100%;background:var(--bg);color:var(--fg);font-family:var(--fon
   <div id="help">
     <span><kbd>n</kbd> new</span>
     <span><kbd>e</kbd> edit selected</span>
+    <span><kbd>d</kbd> toggle doing</span>
     <span><kbd>x</kbd> toggle done</span>
     <span><kbd>del</kbd> delete</span>
     <span><kbd>|</kbd> todo split</span>
@@ -730,6 +731,11 @@ document.addEventListener('keydown', e => {
     case 'x': {
       const t = selectedTask();
       if (t) send({ type:'setStatus', id:t.id, status: t.status==='done' ? 'backlog' : 'done' });
+      break;
+    }
+    case 'd': {
+      const t = selectedTask();
+      if (t) send({ type:'setStatus', id:t.id, status: t.status==='doing' ? 'backlog' : 'doing' });
       break;
     }
     case 'm': case 'Enter': {
