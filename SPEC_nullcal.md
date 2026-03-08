@@ -25,7 +25,9 @@ Three invariants hold across all development phases:
 
 ### MVP (Phase 1)
 - Local web server serving a dashboard with week calendar, to-do list, kanban board
-- Layout splits controlled by the web UI
+- Single-command boot: `nullcal` boots the server and auto-opens the browser
+- Layout splits controlled by the web UI (including a draggable Kanban horizontal resizer)
+- Sidebar Inspector panel for quick task viewing and auto-saving editing
 - Local task management (create, edit, complete, delete, move status)
 - Fixed routine blocks (e.g. Monday = Vexil, Tuesday = Wardex) from config
 - Google Calendar read/write via OAuth2
