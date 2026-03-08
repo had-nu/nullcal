@@ -157,6 +157,11 @@ html,body{height:100%;background:var(--bg);color:var(--fg);font-family:var(--fon
 
   <!-- HEADER -->
   <div id="header">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="18" height="18" fill="none">
+      <rect x="8" y="8" width="84" height="84" rx="3" stroke="#e0e0e0" stroke-width="6"/>
+      <line x1="8" y1="29" x2="92" y2="29" stroke="#e0e0e0" stroke-width="6"/>
+      <line x1="19" y1="87" x2="81" y2="13" stroke="#e0e0e0" stroke-width="9" stroke-linecap="square"/>
+    </svg>
     <span class="logo">NULLCAL</span>
     <span class="meta" id="hdr-meta"></span>
     <span class="conn" id="conn-status">● connecting</span>

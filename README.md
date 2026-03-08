@@ -8,7 +8,7 @@
 
 ## Overview
 
-A local web calendar and task manager. Google Calendar as a replaceable backend.
+A local web calendar and task manager running strictly via browser over WebSockets and `index.html`. Google Calendar as a replaceable backend. All assets (including the SVG favicon) are baked statically so the system operates efficiently without requiring live network connections for its interface.
 
 ## Getting Started
 

@@ -12,6 +12,7 @@ nullcal
 *.out
 coverage.out
 coverage.html
+testdata/
 
 # Build cache
 /vendor/
@@ -39,3 +40,7 @@ data/
 # OS
 .DS_Store
 Thumbs.db
+
+# Private databases and documents
+private-db/*
+!private-db/.keep

@@ -5,8 +5,11 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"os/exec"
 	"os/signal"
+	"runtime"
 	"syscall"
+	"time"
 
 	"github.com/spf13/cobra"
 
@@ -24,8 +27,9 @@ var rootCmd = &cobra.Command{
 
 A local web application providing a week view and kanban board.
 Google Calendar sync is an optional, replaceable backend.`,
-	Run: func(cmd *cobra.Command, args []string) {
-		_ = cmd.Help()
+	RunE: func(cmd *cobra.Command, args []string) error {
+		// Default behavior: just run the server
+		return runWeb(serveAddr)
 	},
 }
 
@@ -93,6 +97,32 @@ func runWeb(addr string) error {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
+	go func() {
+		time.Sleep(300 * time.Millisecond) // Give the server a moment to bind
+		url := "http://" + addr
+		if addr[0] == ':' {
+			url = "http://localhost" + addr
+		}
+		openBrowser(url)
+	}()
+
 	hub := web.NewHub(db, cfg)
 	return hub.Serve(ctx, addr)
+}
+
+func openBrowser(url string) {
+	var err error
+	switch runtime.GOOS {
+	case "linux":
+		err = exec.Command("xdg-open", url).Start()
+	case "windows":
+		err = exec.Command("rundll32", "url.dll,FileProtocolHandler", url).Start()
+	case "darwin":
+		err = exec.Command("open", url).Start()
+	default:
+		err = fmt.Errorf("unsupported platform")
+	}
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Could not open browser automatically: %v\nOpen %s manually.\n", err, url)
+	}
 }
