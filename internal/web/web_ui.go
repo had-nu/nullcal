@@ -48,7 +48,7 @@ html,body{height:100%;background:var(--bg);color:var(--fg);font-family:var(--fon
 #toolbar .week-nav button{padding:2px 8px}
 
 /* ── CALENDAR ── */
-#cal{flex:0 0 60%;border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;min-height:0}
+#cal{flex:1.5;border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;min-height:0}
 #cal-grid{display:grid;grid-template-columns:repeat(7,1fr);flex:1;overflow:hidden}
 .cal-col{border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;cursor:default}
 .cal-col:last-child{border-right:none}
@@ -77,8 +77,12 @@ html,body{height:100%;background:var(--bg);color:var(--fg);font-family:var(--fon
 #details-body input:focus, #details-body textarea:focus{border-color:var(--accent)}
 #details-meta{display:flex;gap:10px;align-items:center}
 
+/* ── RESIZER ── */
+#resizer{height:6px;background:var(--bg2);border-bottom:1px solid var(--border);cursor:row-resize;flex-shrink:0;transition:background .15s}
+#resizer:hover, #resizer.active{background:var(--border)}
+
 /* ── KANBAN ── */
-#kan{flex:0 0 200px;display:flex;flex-direction:column;overflow:hidden;border-top:1px solid var(--border)}
+#kan{height:300px;flex:0 0 auto;display:flex;flex-direction:column;overflow:hidden}
 #kan.hidden{display:none}
 #kan-grid{display:grid;grid-template-columns:repeat(3,1fr);flex:1;overflow:hidden;min-height:0}
 .kan-col{border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;min-height:0}
@@ -236,6 +240,9 @@ html,body{height:100%;background:var(--bg);color:var(--fg);font-family:var(--fon
       </div>
 
     </div>
+
+    <!-- RESIZER -->
+    <div id="resizer"></div>
 
     <!-- KANBAN -->
     <div id="kan">
@@ -525,6 +532,7 @@ function updateToolbar() {
   document.getElementById('btn-kan').classList.toggle('active', showKan);
   document.getElementById('todo').classList.toggle('hidden', !showTodo);
   document.getElementById('kan').classList.toggle('hidden', !showKan);
+  document.getElementById('resizer').classList.toggle('hidden', !showKan);
 }
 
 // ── SELECTION ──────────────────────────────────────────────────────────────
@@ -749,6 +757,44 @@ document.getElementById('modal-overlay').onclick = e => {
 document.getElementById('modal').onkeydown = e => {
   if(e.key==='Enter') submitModal();
 };
+
+// ── KANBAN RESIZER ─────────────────────────────────────────────────────────
+let isResizing = false;
+
+document.getElementById('resizer').addEventListener('mousedown', function(e) {
+  isResizing = true;
+  document.body.style.cursor = 'row-resize';
+  document.body.style.userSelect = 'none';
+  document.getElementById('resizer').classList.add('active');
+});
+
+document.addEventListener('mousemove', function(e) {
+  if (!isResizing) return;
+  // Calculate new height for KANBAN based on mouse position from bottom of #body
+  const bodyEl = document.getElementById('body');
+  const bodyRect = bodyEl.getBoundingClientRect();
+  
+  // Height = Body Bottom - Mouse Y
+  let newHeight = bodyRect.bottom - e.clientY;
+  
+  // Boundaries
+  const minHeight = 100;
+  const maxHeight = bodyRect.height - 150; // Keep some space for calendar
+
+  if (newHeight < minHeight) newHeight = minHeight;
+  if (newHeight > maxHeight) newHeight = maxHeight;
+
+  document.getElementById('kan').style.height = newHeight + 'px';
+});
+
+document.addEventListener('mouseup', function() {
+  if (isResizing) {
+    isResizing = false;
+    document.body.style.cursor = 'default';
+    document.body.style.userSelect = '';
+    document.getElementById('resizer').classList.remove('active');
+  }
+});
 
 // ── UTILS ──────────────────────────────────────────────────────────────────
 function esc(s) {
