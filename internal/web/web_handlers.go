@@ -2,7 +2,7 @@ package web
 
 import (
 	"bufio"
-	"crypto/sha1"
+	"crypto/sha1" //nolint:gosec // required by RFC 6455
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -25,9 +25,9 @@ type client struct {
 
 // inboundMsg is the envelope the browser sends for any action.
 type inboundMsg struct {
-	Type   string          `json:"type"`   // "create" | "update" | "delete" | "setStatus"
-	Task   *taskDTO        `json:"task"`   // for create / update
-	ID     string          `json:"id"`     // for delete / setStatus
+	Type   string           `json:"type"`   // "create" | "update" | "delete" | "setStatus"
+	Task   *taskDTO         `json:"task"`   // for create / update
+	ID     string           `json:"id"`     // for delete / setStatus
 	Status store.TaskStatus `json:"status"` // for setStatus
 }
 
@@ -231,7 +231,7 @@ func handleIndex(w http.ResponseWriter, r *http.Request) {
 }
 
 // handleFavicon serves the embedded SVG application icon.
-func handleFavicon(w http.ResponseWriter, r *http.Request) {
+func handleFavicon(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "image/svg+xml")
 	w.Header().Set("Cache-Control", "public, max-age=86400")
 	_, _ = w.Write([]byte(iconSVG))
@@ -304,14 +304,14 @@ func wsWriteFrame(w io.Writer, payload []byte) error {
 
 	switch {
 	case length <= 125:
-		header = []byte{0x81, byte(length)}
+		header = []byte{0x81, byte(length)} //nolint:gosec
 	case length <= 65535:
-		header = []byte{0x81, 126, byte(length >> 8), byte(length)}
+		header = []byte{0x81, 126, byte(length >> 8), byte(length)} //nolint:gosec
 	default:
-		header = []byte{
+		header = []byte{ //nolint:gosec
 			0x81, 127,
 			0, 0, 0, 0,
-			byte(length >> 24), byte(length >> 16), byte(length >> 8), byte(length),
+			byte(length >> 24), byte(length >> 16), byte(length >> 8), byte(length), //nolint:gosec
 		}
 	}
 

@@ -112,10 +112,10 @@ func (h *Hub) buildStateMessage() ([]byte, error) {
 	}
 
 	payload := struct {
-		Type          string             `json:"type"`
-		Tasks         []store.Task       `json:"tasks"`
-		RoutineBlocks []routineBlockDTO  `json:"routine_blocks"`
-		ServerTime    string             `json:"server_time"`
+		Type          string            `json:"type"`
+		Tasks         []store.Task      `json:"tasks"`
+		RoutineBlocks []routineBlockDTO `json:"routine_blocks"`
+		ServerTime    string            `json:"server_time"`
 	}{
 		Type:          "state",
 		Tasks:         tasks,
@@ -140,7 +140,7 @@ func (h *Hub) Serve(ctx context.Context, addr string) error {
 	}
 
 	// Shut down cleanly when ctx is cancelled.
-	go func() {
+	go func() { //nolint:gosec
 		<-ctx.Done()
 		shutCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()

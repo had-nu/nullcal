@@ -27,13 +27,11 @@ var rootCmd = &cobra.Command{
 
 A local web application providing a week view and kanban board.
 Google Calendar sync is an optional, replaceable backend.`,
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(_ *cobra.Command, _ []string) error {
 		// Default behavior: just run the server
 		return runWeb(serveAddr)
 	},
 }
-
-
 
 var serveAddr string
 
@@ -45,7 +43,7 @@ var serveCmd = &cobra.Command{
 The browser connects to the server via WebSocket. Every action (create, edit,
 delete, move status) is sent to the server, persisted in SQLite, and broadcast
 back to all connected tabs in real time.`,
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(_ *cobra.Command, _ []string) error {
 		return runWeb(serveAddr)
 	},
 }
@@ -114,11 +112,11 @@ func openBrowser(url string) {
 	var err error
 	switch runtime.GOOS {
 	case "linux":
-		err = exec.Command("xdg-open", url).Start()
+		err = exec.Command("xdg-open", url).Start() //nolint:gosec
 	case "windows":
-		err = exec.Command("rundll32", "url.dll,FileProtocolHandler", url).Start()
+		err = exec.Command("rundll32", "url.dll,FileProtocolHandler", url).Start() //nolint:gosec
 	case "darwin":
-		err = exec.Command("open", url).Start()
+		err = exec.Command("open", url).Start() //nolint:gosec
 	default:
 		err = fmt.Errorf("unsupported platform")
 	}
