@@ -36,25 +36,25 @@ const (
 
 // Task is a local unit of work, independent of any external calendar.
 type Task struct {
-	ID          string
-	Title       string
-	Description string
-	ProjectTag  string
-	Status      TaskStatus
-	DueAt       *time.Time
-	CompletedAt *time.Time
-	Recurrence  Recurrence
-	CreatedAt   time.Time
+	ID          string     `json:"id"`
+	Title       string     `json:"title"`
+	Description string     `json:"description"`
+	ProjectTag  string     `json:"project_tag"`
+	Status      TaskStatus `json:"status"`
+	DueAt       *time.Time `json:"due_at"`
+	CompletedAt *time.Time `json:"completed_at"`
+	Recurrence  Recurrence `json:"recurrence"`
+	CreatedAt   time.Time  `json:"created_at"`
 }
 
 // CalendarEvent is the normalised representation of an external event.
 // Populated by any CalendarAdapter implementation.
 type CalendarEvent struct {
-	ExternalID  string
-	Source      string // "gcal", "caldav"
-	Title       string
-	StartAt     time.Time
-	EndAt       time.Time
-	Description string
-	SyncedAt    time.Time
+	ExternalID  string    `json:"external_id"`
+	Source      string    `json:"source"`
+	Title       string    `json:"title"`
+	StartAt     time.Time `json:"start_at"`
+	EndAt       time.Time `json:"end_at"`
+	Description string    `json:"description"`
+	SyncedAt    time.Time `json:"synced_at"`
 }

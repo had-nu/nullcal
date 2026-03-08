@@ -1,6 +1,6 @@
 # nullcal
 
-> TUI-native calendar and task manager. Google Calendar as a replaceable backend.
+> A local web calendar and task manager. Google Calendar as a replaceable backend.
 
 [![Go Version](https://img.shields.io/badge/go-1.22+-blue.svg)](https://go.dev/)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
@@ -8,7 +8,7 @@
 
 ## Overview
 
-TUI-native calendar and task manager. Google Calendar as a replaceable backend.
+A local web calendar and task manager running strictly via browser over WebSockets and `index.html`. Google Calendar as a replaceable backend. All assets (including the SVG favicon) are baked statically so the system operates efficiently without requiring live network connections for its interface.
 
 ## Getting Started
 

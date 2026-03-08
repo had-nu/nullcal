@@ -12,6 +12,7 @@ nullcal
 *.out
 coverage.out
 coverage.html
+testdata/
 
 # Build cache
 /vendor/
@@ -22,10 +23,12 @@ lazygo.yml.bak
 # OAuth2 tokens (never commit)
 token.json
 
-# SQLite database
+# SQLite database and local data
 *.db
 *.db-wal
 *.db-shm
+nullcal.db
+data/
 
 # Editor
 .vscode/
@@ -37,3 +40,7 @@ token.json
 # OS
 .DS_Store
 Thumbs.db
+
+# Private databases and documents
+private-db/*
+!private-db/.keep
