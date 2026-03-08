@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>nullcal icon</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#0d0d0d;--fg:#e0e0e0;--dim:#444;--border:#222;--font:'Share Tech Mono',monospace}
+body{background:var(--bg);color:var(--fg);font-family:var(--font);min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:60px;padding:60px 40px}
+
+/* ── HERO ── */
+.hero{display:flex;flex-direction:column;align-items:center;gap:28px}
+.hero-icon{display:flex;align-items:center;justify-content:center}
+.hero-icon svg{filter:drop-shadow(0 0 24px rgba(224,224,224,.18))}
+.hero-name{font-size:11px;letter-spacing:.35em;color:var(--dim);text-transform:uppercase}
+
+/* ── SIZE GRID ── */
+.section{display:flex;flex-direction:column;align-items:center;gap:20px;width:100%}
+.section-label{font-size:10px;letter-spacing:.25em;color:var(--dim)}
+
+.size-row{display:flex;align-items:center;gap:32px;flex-wrap:wrap;justify-content:center}
+.size-cell{display:flex;flex-direction:column;align-items:center;gap:10px}
+.size-cell span{font-size:10px;color:var(--dim);letter-spacing:.1em}
+
+/* ── CONTEXT PREVIEWS ── */
+.contexts{display:flex;gap:40px;flex-wrap:wrap;justify-content:center}
+
+.ctx{display:flex;flex-direction:column;align-items:center;gap:12px}
+.ctx-label{font-size:10px;letter-spacing:.2em;color:var(--dim)}
+
+/* dark bg (native) */
+.bg-dark{background:#111;padding:20px;border:1px solid #222;display:flex;align-items:center;gap:12px}
+.bg-dark .app-name{font-size:13px;color:#e0e0e0;letter-spacing:.1em}
+
+/* light bg */
+.bg-light{background:#f0f0f0;padding:20px;display:flex;align-items:center;gap:12px}
+.bg-light .app-name{font-size:13px;color:#111;letter-spacing:.1em;font-family:'Share Tech Mono',monospace}
+
+/* dock-style */
+.dock{background:#1a1a1a;border:1px solid #2a2a2a;padding:12px 16px;display:flex;align-items:center;gap:16px;border-radius:4px}
+.dock-item{display:flex;flex-direction:column;align-items:center;gap:6px;opacity:.4}
+.dock-item.active{opacity:1}
+.dock-item span{font-size:9px;color:#888;letter-spacing:.1em}
+
+/* favicon bar */
+.favicon-bar{background:#1c1c1c;border:1px solid #2a2a2a;padding:8px 14px;display:flex;align-items:center;gap:8px;border-radius:3px;font-size:12px;color:#999;font-family:'Share Tech Mono',monospace;width:280px}
+.favicon-bar .tab-dots{display:flex;gap:4px;margin-right:4px}
+.favicon-bar .tab-dots span{width:7px;height:7px;border-radius:50%;background:#333}
+
+/* terminal tab */
+.term-tab{background:#111;border:1px solid #2a2a2a;padding:6px 14px;display:flex;align-items:center;gap:7px;font-size:11px;color:#888;letter-spacing:.05em;border-radius:3px 3px 0 0;font-family:'Share Tech Mono',monospace}
+
+/* divider */
+.divider{width:1px;height:60px;background:var(--border)}
+</style>
+</head>
+<body>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-icon">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="120" height="120" fill="none">
+      <rect x="8" y="8" width="84" height="84" rx="3" stroke="#e0e0e0" stroke-width="6"/>
+      <line x1="8" y1="29" x2="92" y2="29" stroke="#e0e0e0" stroke-width="6"/>
+      <line x1="19" y1="87" x2="81" y2="13" stroke="#e0e0e0" stroke-width="9" stroke-linecap="square"/>
+    </svg>
+  </div>
+  <span class="hero-name">nullcal — icon v1</span>
+</div>
+
+<!-- SIZES -->
+<div class="section">
+  <span class="section-label">sizes</span>
+  <div class="size-row">
+    <div class="size-cell">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="16" height="16" fill="none">
+        <rect x="8" y="8" width="84" height="84" rx="3" stroke="#e0e0e0" stroke-width="6"/>
+        <line x1="8" y1="29" x2="92" y2="29" stroke="#e0e0e0" stroke-width="6"/>
+        <line x1="19" y1="87" x2="81" y2="13" stroke="#e0e0e0" stroke-width="9" stroke-linecap="square"/>
+      </svg>
+      <span>16</span>
+    </div>
+    <div class="size-cell">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="24" height="24" fill="none">
+        <rect x="8" y="8" width="84" height="84" rx="3" stroke="#e0e0e0" stroke-width="6"/>
+        <line x1="8" y1="29" x2="92" y2="29" stroke="#e0e0e0" stroke-width="6"/>
+        <line x1="19" y1="87" x2="81" y2="13" stroke="#e0e0e0" stroke-width="9" stroke-linecap="square"/>
+      </svg>
+      <span>24</span>
+    </div>
+    <div class="size-cell">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="32" height="32" fill="none">
+        <rect x="8" y="8" width="84" height="84" rx="3" stroke="#e0e0e0" stroke-width="6"/>
+        <line x1="8" y1="29" x2="92" y2="29" stroke="#e0e0e0" stroke-width="6"/>
+        <line x1="19" y1="87" x2="81" y2="13" stroke="#e0e0e0" stroke-width="9" stroke-linecap="square"/>
+      </svg>
+      <span>32</span>
+    </div>
+    <div class="size-cell">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="48" height="48" fill="none">
+        <rect x="8" y="8" width="84" height="84" rx="3" stroke="#e0e0e0" stroke-width="6"/>
+        <line x1="8" y1="29" x2="92" y2="29" stroke="#e0e0e0" stroke-width="6"/>
+        <line x1="19" y1="87" x2="81" y2="13" stroke="#e0e0e0" stroke-width="9" stroke-linecap="square"/>
+      </svg>
+      <span>48</span>
+    </div>
+    <div class="size-cell">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="64" height="64" fill="none">
+        <rect x="8" y="8" width="84" height="84" rx="3" stroke="#e0e0e0" stroke-width="6"/>
+        <line x1="8" y1="29" x2="92" y2="29" stroke="#e0e0e0" stroke-width="6"/>
+        <line x1="19" y1="87" x2="81" y2="13" stroke="#e0e0e0" stroke-width="9" stroke-linecap="square"/>
+      </svg>
+      <span>64</span>
+    </div>
+    <div class="size-cell">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="96" height="96" fill="none">
+        <rect x="8" y="8" width="84" height="84" rx="3" stroke="#e0e0e0" stroke-width="6"/>
+        <line x1="8" y1="29" x2="92" y2="29" stroke="#e0e0e0" stroke-width="6"/>
+        <line x1="19" y1="87" x2="81" y2="13" stroke="#e0e0e0" stroke-width="9" stroke-linecap="square"/>
+      </svg>
+      <span>96</span>
+    </div>
+  </div>
+</div>
+
+<!-- CONTEXTS -->
+<div class="section">
+  <span class="section-label">contextos</span>
+  <div class="contexts">
+
+    <!-- dark bg -->
+    <div class="ctx">
+      <div class="bg-dark">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="22" height="22" fill="none">
+          <rect x="8" y="8" width="84" height="84" rx="3" stroke="#e0e0e0" stroke-width="6"/>
+          <line x1="8" y1="29" x2="92" y2="29" stroke="#e0e0e0" stroke-width="6"/>
+          <line x1="19" y1="87" x2="81" y2="13" stroke="#e0e0e0" stroke-width="9" stroke-linecap="square"/>
+        </svg>
+        <span class="app-name">nullcal</span>
+      </div>
+      <span class="ctx-label">header / menubar</span>
+    </div>
+
+    <!-- light bg -->
+    <div class="ctx">
+      <div class="bg-light">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="22" height="22" fill="none">
+          <rect x="8" y="8" width="84" height="84" rx="3" stroke="#111" stroke-width="6"/>
+          <line x1="8" y1="29" x2="92" y2="29" stroke="#111" stroke-width="6"/>
+          <line x1="19" y1="87" x2="81" y2="13" stroke="#111" stroke-width="9" stroke-linecap="square"/>
+        </svg>
+        <span class="app-name">nullcal</span>
+      </div>
+      <span class="ctx-label">light background</span>
+    </div>
+
+    <!-- terminal tab -->
+    <div class="ctx">
+      <div class="term-tab">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="14" height="14" fill="none">
+          <rect x="8" y="8" width="84" height="84" rx="3" stroke="#aaa" stroke-width="7"/>
+          <line x1="8" y1="29" x2="92" y2="29" stroke="#aaa" stroke-width="7"/>
+          <line x1="19" y1="87" x2="81" y2="13" stroke="#aaa" stroke-width="10" stroke-linecap="square"/>
+        </svg>
+        nullcal — had-nu@arch
+      </div>
+      <span class="ctx-label">terminal tab</span>
+    </div>
+
+    <!-- favicon -->
+    <div class="ctx">
+      <div class="favicon-bar">
+        <div class="tab-dots">
+          <span style="background:#ff5555"></span>
+          <span style="background:#ffb86c"></span>
+          <span style="background:#50fa7b"></span>
+        </div>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="14" height="14" fill="none">
+          <rect x="8" y="8" width="84" height="84" rx="3" stroke="#e0e0e0" stroke-width="7"/>
+          <line x1="8" y1="29" x2="92" y2="29" stroke="#e0e0e0" stroke-width="7"/>
+          <line x1="19" y1="87" x2="81" y2="13" stroke="#e0e0e0" stroke-width="10" stroke-linecap="square"/>
+        </svg>
+        nullcal
+      </div>
+      <span class="ctx-label">browser favicon</span>
+    </div>
+
+    <!-- dock -->
+    <div class="ctx">
+      <div class="dock">
+        <div class="dock-item">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="36" height="36" fill="none">
+            <rect x="8" y="8" width="84" height="84" rx="3" stroke="#666" stroke-width="6"/>
+            <line x1="8" y1="29" x2="92" y2="29" stroke="#666" stroke-width="6"/>
+            <line x1="19" y1="87" x2="81" y2="13" stroke="#666" stroke-width="9" stroke-linecap="square"/>
+          </svg>
+          <span>files</span>
+        </div>
+        <div class="dock-item">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="36" height="36" fill="none">
+            <rect x="8" y="8" width="84" height="84" rx="3" stroke="#666" stroke-width="6"/>
+            <line x1="8" y1="29" x2="92" y2="29" stroke="#666" stroke-width="6"/>
+            <line x1="19" y1="87" x2="81" y2="13" stroke="#666" stroke-width="9" stroke-linecap="square"/>
+          </svg>
+          <span>term</span>
+        </div>
+        <div class="dock-item active">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="36" height="36" fill="none">
+            <rect x="8" y="8" width="84" height="84" rx="3" stroke="#e0e0e0" stroke-width="6"/>
+            <line x1="8" y1="29" x2="92" y2="29" stroke="#e0e0e0" stroke-width="6"/>
+            <line x1="19" y1="87" x2="81" y2="13" stroke="#e0e0e0" stroke-width="9" stroke-linecap="square"/>
+          </svg>
+          <span style="color:#e0e0e0">nullcal</span>
+        </div>
+        <div class="dock-item">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="36" height="36" fill="none">
+            <rect x="8" y="8" width="84" height="84" rx="3" stroke="#666" stroke-width="6"/>
+            <line x1="8" y1="29" x2="92" y2="29" stroke="#666" stroke-width="6"/>
+            <line x1="19" y1="87" x2="81" y2="13" stroke="#666" stroke-width="9" stroke-linecap="square"/>
+          </svg>
+          <span>code</span>
+        </div>
+      </div>
+      <span class="ctx-label">dock / launcher</span>
+    </div>
+
+  </div>
+</div>
+
+<!-- ANATOMY -->
+<div class="section">
+  <span class="section-label">anatomia</span>
+  <div style="display:flex;gap:48px;align-items:center;flex-wrap:wrap;justify-content:center">
+
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="90" height="90" fill="none">
+      <rect x="8" y="8" width="84" height="84" rx="3" stroke="#e0e0e0" stroke-width="6"/>
+      <line x1="8" y1="29" x2="92" y2="29" stroke="#e0e0e0" stroke-width="6"/>
+      <line x1="19" y1="87" x2="81" y2="13" stroke="#e0e0e0" stroke-width="9" stroke-linecap="square"/>
+    </svg>
+
+    <div style="display:flex;flex-direction:column;gap:14px;font-size:11px;color:#666;letter-spacing:.05em">
+      <div style="display:flex;align-items:center;gap:12px">
+        <svg width="18" height="18" viewBox="0 0 100 100" fill="none">
+          <rect x="8" y="8" width="84" height="84" rx="3" stroke="#e0e0e0" stroke-width="8"/>
+        </svg>
+        <span>frame — terminal window / calendar boundary</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px">
+        <svg width="18" height="18" viewBox="0 0 100 100" fill="none">
+          <line x1="2" y1="50" x2="98" y2="50" stroke="#e0e0e0" stroke-width="10"/>
+        </svg>
+        <span>header rule — column headers, the top of every day</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px">
+        <svg width="18" height="18" viewBox="0 0 100 100" fill="none">
+          <line x1="10" y1="90" x2="90" y2="10" stroke="#e0e0e0" stroke-width="12" stroke-linecap="square"/>
+        </svg>
+        <span>slash — null (∅), the name, the philosophy</span>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+</body>
+</html>

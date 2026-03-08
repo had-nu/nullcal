@@ -4,7 +4,7 @@
 project:
   name: nullcal
   module_path: github.com/had-nu/nullcal
-  description: "TUI-native calendar and task manager. Google Calendar as a replaceable backend."
+  description: "A local web calendar and task manager. Google Calendar as a replaceable backend."
   author: had-nu
   type: cli
   license: apache-2.0
@@ -24,9 +24,9 @@ github:
   enabled: true
   topics:
     - go
-    - tui
+    - web
     - calendar
-    - bubbletea
+    - websocket
     - productivity
     - local-first
   push_on_init: false

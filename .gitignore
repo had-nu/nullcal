@@ -22,10 +22,12 @@ lazygo.yml.bak
 # OAuth2 tokens (never commit)
 token.json
 
-# SQLite database
+# SQLite database and local data
 *.db
 *.db-wal
 *.db-shm
+nullcal.db
+data/
 
 # Editor
 .vscode/
