@@ -60,8 +60,22 @@ html,body{height:100%;background:var(--bg);color:var(--fg);font-family:var(--fon
 .task-gap{height:3px}
 
 /* ── TODO ── */
-#todo{flex:0 0 40%;display:flex;flex-direction:column;overflow:hidden;min-height:0}
+#todo{flex:1;display:flex;flex-direction:column;overflow:hidden;min-height:0}
 #todo.hidden{display:none}
+
+/* ── DETAILS (INSPECTOR) ── */
+#details{flex:0 0 320px;border-left:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;background:var(--bg2)}
+#details.hidden{display:none}
+#details-body{padding:14px;display:flex;flex-direction:column;gap:12px;overflow-y:auto;flex:1}
+#details-body label{font-size:11.5px;color:var(--dim);font-weight:bold;letter-spacing:.05em;margin-bottom:-4px}
+#details-body input, #details-body textarea{
+  background:transparent;border:1px solid var(--border);color:var(--fg);
+  font-family:var(--font);font-size:13px;padding:6px 8px;outline:none;
+  transition:border-color .15s;width:100%;
+}
+#details-body textarea{resize:vertical;min-height:120px;flex:1}
+#details-body input:focus, #details-body textarea:focus{border-color:var(--accent)}
+#details-meta{display:flex;gap:10px;align-items:center}
 
 /* ── KANBAN ── */
 #kan{flex:0 0 200px;display:flex;flex-direction:column;overflow:hidden;border-top:1px solid var(--border)}
@@ -193,6 +207,32 @@ html,body{height:100%;background:var(--bg);color:var(--fg);font-family:var(--fon
       <div id="todo">
         <div class="pane-hdr">TO-DO LIST</div>
         <div id="todo-list" style="padding:6px 10px;display:flex;flex-direction:column;gap:3px;overflow-y:auto;flex:1"></div>
+      </div>
+
+      <!-- DETAILS (INSPECTOR) -->
+      <div id="details" class="hidden">
+        <div class="pane-hdr" style="display:flex;justify-content:space-between">
+          <span>DETAILS</span>
+          <button style="background:transparent;border:none;color:var(--dim);cursor:pointer;font-family:inherit" onclick="selectTask(null)">[esc] close</button>
+        </div>
+        <div id="details-body">
+          <label>TITLE</label>
+          <input id="dt-title" onblur="saveDetails()">
+          
+          <div id="details-meta">
+             <div style="flex:1">
+               <label>DUE TO</label>
+               <input id="dt-due" style="margin-top:4px" placeholder="YYYY-MM-DD" onblur="saveDetails()">
+             </div>
+             <div style="flex:1">
+               <label>TAG</label>
+               <input id="dt-tag" style="margin-top:4px" placeholder="..." onblur="saveDetails()">
+             </div>
+          </div>
+
+          <label>DESCRIPTION</label>
+          <textarea id="dt-desc" placeholder="Add task context or notes here..." onblur="saveDetails()"></textarea>
+        </div>
       </div>
 
     </div>
@@ -357,6 +397,7 @@ function render() {
   renderTodo();
   renderKanban();
   renderStatus();
+  renderDetails();
   updateToolbar();
 }
 
@@ -490,10 +531,74 @@ function updateToolbar() {
 function selectTask(id) {
   selectedId = selectedId === id ? null : id;
   render();
+
+  // If selecting a task, populate details and focus description if it's empty
+  if (selectedId) {
+    const t = selectedTask();
+    if (t) {
+      document.getElementById('dt-title').value = t.title || '';
+      document.getElementById('dt-due').value = t.due_at ? t.due_at.slice(0, 10) : '';
+      document.getElementById('dt-tag').value = t.project_tag || '';
+      document.getElementById('dt-desc').value = t.description || '';
+      
+      // small delay to allow UI to render the element before focusing
+      setTimeout(() => {
+        if (!t.description) document.getElementById('dt-desc').focus();
+      }, 50);
+    }
+  }
 }
 
 function selectedTask() {
   return (state.tasks||[]).find(t => t.id === selectedId) || null;
+}
+
+// ── DETAILS (INSPECTOR) ────────────────────────────────────────────────────
+function renderDetails() {
+  const dEl = document.getElementById('details');
+  const t = selectedTask();
+  if (!t) {
+    dEl.classList.add('hidden');
+    return;
+  }
+  dEl.classList.remove('hidden');
+  
+  // We only update the visual state attributes here without touching values
+  // so we don't overwrite user's typing focus during real-time broadcasts.
+  // The actual values are populated during selectTask().
+}
+
+function saveDetails() {
+  const t = selectedTask();
+  if (!t) return;
+
+  const title = document.getElementById('dt-title').value.trim();
+  if (!title) return; // ignore clearing title
+
+  const desc = document.getElementById('dt-desc').value.trim();
+  const tag = document.getElementById('dt-tag').value.trim();
+  const due = document.getElementById('dt-due').value.trim();
+  
+  if (due && !/^\d{4}-\d{2}-\d{2}$/.test(due)) return;
+
+  // Check if anything actually changed
+  const tDue = t.due_at ? t.due_at.slice(0, 10) : '';
+  const tDesc = t.description || '';
+  const tTag = t.project_tag || '';
+  
+  if (t.title === title && tDesc === desc && tTag === tag && tDue === due) {
+    return; // no diff
+  }
+
+  const updated = {
+    id: t.id,
+    title: title,
+    description: desc,
+    project_tag: tag,
+    due_at: due || null
+  };
+  
+  send({ type: 'update', task: updated });
 }
 
 // ── WEEK NAV ───────────────────────────────────────────────────────────────
@@ -585,6 +690,22 @@ document.getElementById('confirm-yes').onclick = () => {
 
 // ── KEYBOARD ───────────────────────────────────────────────────────────────
 document.addEventListener('keydown', e => {
+  // Ignore global keybinds if we are currently typing in an input/textarea
+  if (['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
+    if (e.key === 'Escape') {
+      document.activeElement.blur();
+      // If we are in the details pane, also deselect task
+      if (!document.getElementById('modal-overlay').classList.contains('open')) {
+        selectTask(null);
+      }
+    }
+    // Except for enter inside inputs globally
+    if (e.key === 'Enter' && document.activeElement.tagName === 'INPUT' && !document.getElementById('modal-overlay').classList.contains('open')) {
+      document.activeElement.blur();
+    }
+    return;
+  }
+
   // Modal open — only esc
   if (document.getElementById('modal-overlay').classList.contains('open')) {
     if (e.key === 'Escape') closeModal();
