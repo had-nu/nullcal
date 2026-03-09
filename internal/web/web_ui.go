@@ -104,7 +104,7 @@ html,body{height:100%;background:var(--bg);color:var(--fg);font-family:var(--fon
   transition:background .1s;user-select:none;flex-shrink:0;
 }
 .ti:hover{background:#1f1f1f}
-.ti.selected{background:var(--sel-bg);color:var(--sel-fg)}
+.ti.selected{background:var(--sel-bg);color:var(--sel-fg) !important}
 .ti.t-normal{color:var(--fg)}
 .ti.t-duesoon{color:var(--duesoon)}
 .ti.t-overdue{color:var(--overdue)}
@@ -198,6 +198,16 @@ html,body{height:100%;background:var(--bg);color:var(--fg);font-family:var(--fon
     <button id="btn-todo" onclick="toggleTodo()">[ | ] todo</button>
     <button id="btn-kan"  onclick="toggleKan()">[ - ] kanban</button>
     <div class="sep"></div>
+    <select id="opt-date" onchange="changeFormat()" style="background:var(--bg);border:1px solid var(--border);color:var(--dim);border-radius:2px;font-family:var(--font);font-size:12px;outline:none;cursor:pointer">
+      <option value="DD/MM/YYYY">DD/MM/YYYY</option>
+      <option value="MM/DD/YYYY">MM/DD/YYYY</option>
+      <option value="YYYY-MM-DD">YYYY-MM-DD</option>
+    </select>
+    <select id="opt-time" onchange="changeFormat()" style="background:var(--bg);border:1px solid var(--border);color:var(--dim);border-radius:2px;font-family:var(--font);font-size:12px;outline:none;cursor:pointer">
+      <option value="24h">24h</option>
+      <option value="12h">12h AM/PM</option>
+    </select>
+    <div style="width:4px"></div>
     <div class="week-nav">
       <button onclick="shiftWeek(-1)">◀ h</button>
       <span id="week-label"></span>
@@ -234,6 +244,10 @@ html,body{height:100%;background:var(--bg);color:var(--fg);font-family:var(--fon
              <div style="flex:1">
                <label>DUE TO</label>
                <input id="dt-due" style="margin-top:4px" placeholder="YYYY-MM-DD" onblur="saveDetails()">
+             </div>
+             <div style="flex:1">
+               <label>TIME</label>
+               <input id="dt-time" type="time" style="margin-top:4px" onblur="saveDetails()">
              </div>
              <div style="flex:1">
                <label>TAG</label>
@@ -354,6 +368,20 @@ let showTodo = true;
 let showKan  = true;
 let weekOffset = 0;      // weeks from current
 
+let prefDateFmt = localStorage.getItem('ncal-date') || 'DD/MM/YYYY';
+let prefTimeFmt = localStorage.getItem('ncal-time') || '24h';
+
+document.getElementById('opt-date').value = prefDateFmt;
+document.getElementById('opt-time').value = prefTimeFmt;
+
+function changeFormat() {
+  prefDateFmt = document.getElementById('opt-date').value;
+  prefTimeFmt = document.getElementById('opt-time').value;
+  localStorage.setItem('ncal-date', prefDateFmt);
+  localStorage.setItem('ncal-time', prefTimeFmt);
+  render();
+}
+
 // ── WEBSOCKET ──────────────────────────────────────────────────────────────
 function connect() {
   const proto = location.protocol === 'https:' ? 'wss' : 'ws';
@@ -425,11 +453,20 @@ function fmtDate(d) {
   const dd = String(d.getDate()).padStart(2,'0');
   const mm = String(d.getMonth()+1).padStart(2,'0');
   const yy = d.getFullYear();
-  return dd+'. '+mm+'. '+yy;
+  if (prefDateFmt === 'MM/DD/YYYY') return mm+'/'+dd+'/'+yy;
+  if (prefDateFmt === 'YYYY-MM-DD') return yy+'-'+mm+'-'+dd;
+  return dd+'/'+mm+'/'+yy;
 }
 
 function fmtTime(d) {
-  return String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+  let h = d.getHours();
+  const m = String(d.getMinutes()).padStart(2,'0');
+  if (prefTimeFmt === '12h') {
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    h = h % 12 || 12;
+    return h + ':' + m + ' ' + ampm;
+  }
+  return String(h).padStart(2,'0') + ':' + m;
 }
 
 // ── RENDER ─────────────────────────────────────────────────────────────────
@@ -614,7 +651,20 @@ function selectTask(id) {
     const t = selectedTask();
     if (t) {
       document.getElementById('dt-title').value = t.title || '';
-      document.getElementById('dt-due').value = t.due_at ? t.due_at.slice(0, 10) : '';
+      
+      let dueD = '';
+      let dueT = '';
+      if (t.due_at) {
+        dueD = t.due_at.slice(0, 10);
+        if (t.due_at.length > 10) {
+          const d = new Date(t.due_at);
+          dueT = String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+          if (dueT === '00:00') dueT = '';
+        }
+      }
+      document.getElementById('dt-due').value = dueD;
+      document.getElementById('dt-time').value = dueT;
+
       document.getElementById('dt-tag').value = t.project_tag || '';
       document.getElementById('dt-desc').value = t.description || '';
       
@@ -646,36 +696,31 @@ function renderDetails() {
 }
 
 function saveDetails() {
-  const t = selectedTask();
+  if (!selectedId) return;
+  const t = state.tasks.find(x => x.id === selectedId);
   if (!t) return;
 
-  const title = document.getElementById('dt-title').value.trim();
-  if (!title) return; // ignore clearing title
+  const nTitle = document.getElementById('dt-title').value.trim();
+  const nDesc  = document.getElementById('dt-desc').value.trim();
+  const nTag   = document.getElementById('dt-tag').value.trim();
+  const nDueD  = document.getElementById('dt-due').value.trim();
+  const nDueT  = document.getElementById('dt-time').value.trim();
 
-  const desc = document.getElementById('dt-desc').value.trim();
-  const tag = document.getElementById('dt-tag').value.trim();
-  const due = document.getElementById('dt-due').value.trim();
-  
-  if (due && !/^\d{4}-\d{2}-\d{2}$/.test(due)) return;
-
-  // Check if anything actually changed
-  const tDue = t.due_at ? t.due_at.slice(0, 10) : '';
-  const tDesc = t.description || '';
-  const tTag = t.project_tag || '';
-  
-  if (t.title === title && tDesc === desc && tTag === tag && tDue === due) {
-    return; // no diff
+  let nDue = null;
+  if (nDueD && /^\d{4}-\d{2}-\d{2}$/.test(nDueD)) {
+    nDue = nDueT ? nDueD + 'T' + nDueT + ':00' : nDueD;
   }
 
-  const updated = {
-    id: t.id,
-    title: title,
-    description: desc,
-    project_tag: tag,
-    due_at: due || null
-  };
-  
-  send({ type: 'update', task: updated });
+  // Restore task state so optimistic rendering isn't weird if it fails
+  if (!nTitle) {
+    document.getElementById('dt-title').value = t.title;
+    return;
+  }
+
+  if (nTitle!==t.title || nDesc!==(t.description||'') || nTag!==(t.project_tag||'') || nDue!==(t.due_at||null)) {
+    const fresh = { ...t, title:nTitle, description:nDesc, project_tag:nTag, due_at:nDue };
+    send({ type:'update', task:fresh });
+  }
 }
 
 // ── WEEK NAV ───────────────────────────────────────────────────────────────
