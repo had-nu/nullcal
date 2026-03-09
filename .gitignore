@@ -7,6 +7,11 @@ bin/
 *.dylib
 nullcal
 
+# Credentials — never commit
+.env
+.env.*
+token.json
+
 # Test artifacts
 *.test
 *.out
