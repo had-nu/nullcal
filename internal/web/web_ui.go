@@ -58,6 +58,10 @@ html,body{height:100%;background:var(--bg);color:var(--fg);font-family:var(--fon
 .rb{font-size:13px;color:#666;padding:1px 0;flex-shrink:0}
 .rb-lbl{color:#777;font-weight:bold}
 .task-gap{height:3px}
+.cal-ev{display:flex;align-items:baseline;gap:5px;font-size:13px;padding:2px 4px;border-left:2px solid #4285f4;background:rgba(66,133,244,.08);border-radius:0 3px 3px 0;overflow:hidden;flex-shrink:0}
+.cal-ev-time{color:#4285f4;font-size:11px;white-space:nowrap;flex-shrink:0}
+.cal-ev-title{color:#ccc;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.time-badge{font-size:11px;color:var(--dim);margin-left:4px;white-space:nowrap;flex-shrink:0}
 
 /* ── TODO ── */
 #todo{flex:1;display:flex;flex-direction:column;overflow:hidden;min-height:0}
@@ -412,6 +416,10 @@ function fmtDate(d) {
   return dd+'. '+mm+'. '+yy;
 }
 
+function fmtTime(d) {
+  return String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+}
+
 // ── RENDER ─────────────────────────────────────────────────────────────────
 const SHORT_DAYS = ['SUN','MON','TUE','WED','THU','FRI','SAT'];
 
@@ -482,6 +490,25 @@ function renderCalendar() {
       body.appendChild(makeTaskEl(t, { prefix: t.status==='done' ? 'x' : '-', compact: true }));
     });
 
+    // GCal / external calendar events
+    const dayEvents = (state.calendar_events||[]).filter(ev => {
+      if (!ev.start_at) return false;
+      return sameDay(new Date(ev.start_at), day);
+    });
+    dayEvents.forEach(ev => {
+      const el = document.createElement('div');
+      el.className = 'cal-ev';
+      const start = new Date(ev.start_at);
+      const end   = new Date(ev.end_at);
+      const allDay = start.getHours()===0 && start.getMinutes()===0 &&
+                     end.getHours()===0   && end.getMinutes()===0;
+      const timeStr = allDay ? 'all-day' : fmtTime(start)+'-'+fmtTime(end);
+      el.innerHTML = '<span class="cal-ev-time">'+esc(timeStr)+'</span>' +
+                     '<span class="cal-ev-title">'+esc(ev.title)+'</span>';
+      el.title = ev.description || ev.title;
+      body.appendChild(el);
+    });
+
     col.appendChild(body);
     grid.appendChild(col);
   }
@@ -522,6 +549,17 @@ function makeTaskEl(t, opts) {
 
   el.appendChild(pfx);
   el.appendChild(lbl);
+
+  if (t.due_at) {
+    const d = new Date(t.due_at);
+    const hasTime = d.getHours() !== 0 || d.getMinutes() !== 0;
+    if (hasTime) {
+      const badge = document.createElement('span');
+      badge.className = 'time-badge';
+      badge.textContent = fmtTime(d);
+      el.appendChild(badge);
+    }
+  }
 
   if (opts.showTag && t.project_tag) {
     const tag = document.createElement('span');

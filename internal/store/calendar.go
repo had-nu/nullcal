@@ -56,3 +56,39 @@ func (s *Store) UpsertCalendarEvents(events []CalendarEvent) error {
 	}
 	return nil
 }
+
+// ListCalendarEvents returns all stored calendar events ordered by start time.
+func (s *Store) ListCalendarEvents() ([]CalendarEvent, error) {
+	const q = `SELECT external_id, source, title, start_at, end_at, description, synced_at
+               FROM calendar_events ORDER BY start_at ASC`
+	rows, err := s.db.Query(q)
+	if err != nil {
+		return nil, fmt.Errorf("querying calendar events: %w", err)
+	}
+	defer rows.Close()
+
+	var events []CalendarEvent
+	for rows.Next() {
+		var e CalendarEvent
+		var startAt, endAt, syncedAt string
+		if err := rows.Scan(
+			&e.ExternalID, &e.Source, &e.Title,
+			&startAt, &endAt, &e.Description, &syncedAt,
+		); err != nil {
+			return nil, fmt.Errorf("scanning calendar event: %w", err)
+		}
+		// Parse timestamps stored as RFC3339.
+		if t, err := time.Parse(time.RFC3339, startAt); err == nil {
+			e.StartAt = t
+		}
+		if t, err := time.Parse(time.RFC3339, endAt); err == nil {
+			e.EndAt = t
+		}
+		if t, err := time.Parse(time.RFC3339, syncedAt); err == nil {
+			e.SyncedAt = t
+		}
+		events = append(events, e)
+	}
+	return events, rows.Err()
+}
+

@@ -92,12 +92,26 @@ func (h *Hub) buildStateMessage() ([]byte, error) {
 		return nil, fmt.Errorf("listing tasks: %w", err)
 	}
 
+	calEvents, err := h.store.ListCalendarEvents()
+	if err != nil {
+		return nil, fmt.Errorf("listing calendar events: %w", err)
+	}
+
 	type routineBlockDTO struct {
 		Weekday   int    `json:"weekday"` // 0=Sun … 6=Sat
 		StartTime string `json:"start_time"`
 		EndTime   string `json:"end_time"`
 		Label     string `json:"label"`
 		Tag       string `json:"project_tag"`
+	}
+
+	type calEventDTO struct {
+		ExternalID  string `json:"external_id"`
+		Source      string `json:"source"`
+		Title       string `json:"title"`
+		StartAt     string `json:"start_at"`
+		EndAt       string `json:"end_at"`
+		Description string `json:"description"`
 	}
 
 	blocks := make([]routineBlockDTO, len(h.config.RoutineBlocks))
@@ -111,16 +125,30 @@ func (h *Hub) buildStateMessage() ([]byte, error) {
 		}
 	}
 
+	evDTOs := make([]calEventDTO, len(calEvents))
+	for i, e := range calEvents {
+		evDTOs[i] = calEventDTO{
+			ExternalID:  e.ExternalID,
+			Source:      e.Source,
+			Title:       e.Title,
+			StartAt:     e.StartAt.Format(time.RFC3339),
+			EndAt:       e.EndAt.Format(time.RFC3339),
+			Description: e.Description,
+		}
+	}
+
 	payload := struct {
-		Type          string            `json:"type"`
-		Tasks         []store.Task      `json:"tasks"`
-		RoutineBlocks []routineBlockDTO `json:"routine_blocks"`
-		ServerTime    string            `json:"server_time"`
+		Type           string         `json:"type"`
+		Tasks          []store.Task   `json:"tasks"`
+		CalendarEvents []calEventDTO  `json:"calendar_events"`
+		RoutineBlocks  []routineBlockDTO `json:"routine_blocks"`
+		ServerTime     string         `json:"server_time"`
 	}{
-		Type:          "state",
-		Tasks:         tasks,
-		RoutineBlocks: blocks,
-		ServerTime:    time.Now().Format(time.RFC3339),
+		Type:           "state",
+		Tasks:          tasks,
+		CalendarEvents: evDTOs,
+		RoutineBlocks:  blocks,
+		ServerTime:     time.Now().Format(time.RFC3339),
 	}
 
 	return json.Marshal(payload)
