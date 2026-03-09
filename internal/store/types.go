@@ -47,6 +47,7 @@ type Task struct {
 	Recurrence  Recurrence `json:"recurrence"`
 	CreatedAt   time.Time  `json:"created_at"`
 	GCalEventID *string    `json:"gcal_event_id,omitempty"`
+	Pomodoros   int        `json:"pomodoros"`
 }
 
 // CalendarEvent is the normalised representation of an external event.

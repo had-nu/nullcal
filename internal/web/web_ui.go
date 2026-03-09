@@ -272,6 +272,10 @@ html,body{height:100%;background:var(--bg);color:var(--fg);font-family:var(--fon
                   <option value="monthly">Monthly</option>
                 </select>
               </div>
+              <div style="flex:0.5">
+                <label>POMODOROS</label>
+                <input id="dt-pomodoros" type="number" min="1" max="20" style="margin-top:4px;text-align:center" onblur="saveDetails()">
+              </div>
             </div>
           </div>
 
@@ -368,6 +372,10 @@ html,body{height:100%;background:var(--bg);color:var(--fg);font-family:var(--fon
           <option value="monthly">Monthly</option>
         </select>
       </div>
+      <div style="flex:0.8">
+        <label>Pomodoros</label>
+        <input id="f-pomodoros" type="number" min="1" max="20" value="1" style="text-align:center">
+      </div>
     </div>
     <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-top:4px">
       <input type="checkbox" id="f-backlog" style="accent-color:var(--accent);width:14px;height:14px">
@@ -403,6 +411,10 @@ let showKan  = true;
 let zenMode  = false;
 let showAllDone = false;
 let weekOffset = 0;      // weeks from current
+
+let pomoTimerId = null;
+let pomoEnd = 0;
+let pomoTaskId = null;
 
 // ── WEBSOCKET ──────────────────────────────────────────────────────────────
 function connect() {
@@ -548,7 +560,36 @@ function renderCalendar() {
     // Body Col
     const bdyC = document.createElement('div');
     bdyC.className = 'cal-col';
+    bdyC.dataset.date = day.getTime(); // for drag and drop
     
+    // Calendar Col Drop Zone
+    bdyC.ondragover = (e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; };
+    bdyC.ondrop = (e) => {
+      e.preventDefault();
+      const id = e.dataTransfer.getData('text/plain');
+      const t = state.tasks.find(x => x.id === id);
+      if (!t) return;
+      
+      const rect = bdyC.getBoundingClientRect();
+      const y = e.clientY - rect.top;
+      let hours = Math.round(y / 24) * 0.5; // snap to 30 mins
+      if (hours < 0) hours = 0;
+      if (hours >= 24) hours = 23.5;
+      
+      const newD = new Date(parseInt(bdyC.dataset.date, 10));
+      newD.setHours(Math.floor(hours), (hours % 1) * 60, 0, 0);
+      
+      // Keep ISO string local format YYYY-MM-DDTHH:MM:SS
+      const isoY = newD.getFullYear();
+      const isoM = String(newD.getMonth()+1).padStart(2,'0');
+      const isoD = String(newD.getDate()).padStart(2,'0');
+      const isoh = String(newD.getHours()).padStart(2,'0');
+      const isom = String(newD.getMinutes()).padStart(2,'0');
+      const newDue = isoY+'-'+isoM+'-'+isoD+'T'+isoh+':'+isom+':00';
+      
+      send({ type:'update', task: { ...t, due_at: newDue } });
+    };
+
     // Draw background grid lines
     for (let h = 0; h < 24; h++) {
       const gl = document.createElement('div');
@@ -574,8 +615,8 @@ function renderCalendar() {
       bdyC.appendChild(el);
     });
 
-    // 2. Local Tasks
-    const dayTasks = (state.tasks||[]).filter(t => t.due_at && sameDay(new Date(t.due_at), day));
+    // 2. Local Tasks (Filter out done tasks so they don't clog the calendar)
+    const dayTasks = (state.tasks||[]).filter(t => t.due_at && t.status !== 'done' && sameDay(new Date(t.due_at), day));
     dayTasks.forEach(t => {
       const dT = new Date(t.due_at);
       if (t.due_at.length <= 10 || (dT.getHours()===0 && dT.getMinutes()===0)) {
@@ -586,7 +627,28 @@ function renderCalendar() {
         const el = makeTaskEl(t, { prefix: t.status==='done'?'[x]':'[ ]', compact:true });
         el.className = el.className.replace('ti','abs-ti'); // swap class
         el.style.top = top + 'px';
-        el.style.minHeight = '24px'; // default 30m
+        const pomodoros = t.pomodoros && t.pomodoros > 0 ? t.pomodoros : 1;
+        el.style.minHeight = Math.max(pomodoros * 24, 24) + 'px'; // 1 pomodoro = 30m = 24px
+        el.draggable = true;
+        el.ondragstart = (e) => {
+          e.dataTransfer.setData('text/plain', t.id);
+          e.dataTransfer.effectAllowed = 'move';
+        };
+        
+        // Resize handle
+        const handle = document.createElement('div');
+        handle.style.position = 'absolute';
+        handle.style.bottom = '0';
+        handle.style.left = '0';
+        handle.style.right = '0';
+        handle.style.height = '6px';
+        handle.style.cursor = 'ns-resize';
+        handle.onmousedown = (e) => {
+          e.stopPropagation();
+          startTaskResize(e, t.id, el);
+        };
+        el.appendChild(handle);
+        
         bdyC.appendChild(el);
       }
     });
@@ -695,7 +757,9 @@ function makeTaskEl(t, opts) {
 
   const lbl = document.createElement('span');
   lbl.className = 'lbl';
-  lbl.innerHTML = (t.recurrence && t.recurrence !== 'none' ? '<span style="font-size:10px;margin-right:2px;vertical-align:middle;color:var(--accent)">↻</span>' : '') + esc(t.title);
+  const recIcon = (t.recurrence && t.recurrence !== 'none') ? '<span style="font-size:10px;margin-right:2px;vertical-align:middle;color:var(--accent)">↻</span>' : '';
+  const pomIcon = (t.pomodoros && t.pomodoros > 1) ? '<span style="font-size:10px;margin-right:4px;vertical-align:middle;color:var(--overdue)">🍅' + t.pomodoros + '</span>' : '';
+  lbl.innerHTML = pomIcon + recIcon + esc(t.title);
 
   el.appendChild(pfx);
   el.appendChild(lbl);
@@ -728,8 +792,18 @@ function renderStatus() {
   let splits = '';
   if (showTodo)  splits += ' |TODO';
   if (showKan)   splits += ' -KAN';
-  document.getElementById('status-left').innerHTML =
-    '<em>[CAL'+splits+']</em> &nbsp; '+n+' tasks';
+
+  if (pomoTimerId) {
+    const left = Math.max(0, pomoEnd - Date.now());
+    const m = Math.floor(left / 60000);
+    const s = Math.floor((left % 60000) / 1000);
+    const t = state.tasks.find(x => x.id === pomoTaskId);
+    document.getElementById('status-left').innerHTML =
+      '<em style="color:var(--overdue)">[ 🍅 '+String(m).padStart(2,'0')+':'+String(s).padStart(2,'0')+' ]</em> &nbsp; '+esc(t ? t.title : '');
+  } else {
+    document.getElementById('status-left').innerHTML =
+      '<em>[CAL'+splits+']</em> &nbsp; '+n+' tasks';
+  }
 }
 
 function updateToolbar() {
@@ -775,6 +849,7 @@ function selectTask(id) {
 
       document.getElementById('dt-tag').value = t.project_tag || '';
       document.getElementById('dt-recur').value = t.recurrence || '';
+      document.getElementById('dt-pomodoros').value = t.pomodoros || 1;
       document.getElementById('dt-desc').value = t.description || '';
       
       // Removed the document.getElementById('details').classList.remove('hidden') auto-popup
@@ -814,6 +889,7 @@ function saveDetails() {
   const nDueD  = document.getElementById('dt-due').value.trim();
   const nDueT  = document.getElementById('dt-time').value.trim();
   const nRecur = document.getElementById('dt-recur').value;
+  const nPomo  = parseInt(document.getElementById('dt-pomodoros').value, 10) || 1;
 
   // Check for slash command in title
   const match = nTitle.match(/ \/(\w+)$/);
@@ -835,8 +911,8 @@ function saveDetails() {
     return;
   }
 
-  if (nTitle!==t.title || nDesc!==(t.description||'') || nTag!==(t.project_tag||'') || nDue!==(t.due_at||null) || nRecur!==(t.recurrence||'')) {
-    const fresh = { ...t, title:nTitle, description:nDesc, project_tag:nTag, due_at:nDue, recurrence:nRecur };
+  if (nTitle!==t.title || nDesc!==(t.description||'') || nTag!==(t.project_tag||'') || nDue!==(t.due_at||null) || nRecur!==(t.recurrence||'') || nPomo!==(t.pomodoros||1)) {
+    const fresh = { ...t, title:nTitle, description:nDesc, project_tag:nTag, due_at:nDue, recurrence:nRecur, pomodoros:nPomo };
     send({ type:'update', task:fresh });
   }
 }
@@ -862,6 +938,7 @@ function openCreate() {
   document.getElementById('f-due').value      = '';
   document.getElementById('f-time').value     = '';
   document.getElementById('f-recur').value    = '';
+  document.getElementById('f-pomodoros').value= 1;
   document.getElementById('f-backlog').checked = false;
   document.getElementById('modal-err').textContent = '';
   document.getElementById('modal-overlay').classList.add('open');
@@ -887,6 +964,7 @@ function openEdit(id) {
     document.getElementById('f-time').value = '';
   }
   document.getElementById('f-recur').value     = t.recurrence || '';
+  document.getElementById('f-pomodoros').value = t.pomodoros || 1;
   document.getElementById('f-backlog').checked = t.status === 'backlog';
   document.getElementById('modal-err').textContent = '';
   document.getElementById('modal-overlay').classList.add('open');
@@ -903,6 +981,7 @@ function submitModal() {
   const dueTime = document.getElementById('f-time').value.trim();
   const toBacklog = document.getElementById('f-backlog').checked;
   const recur   = document.getElementById('f-recur').value;
+  const pomo    = parseInt(document.getElementById('f-pomodoros').value, 10) || 1;
   let tag       = document.getElementById('f-tag').value.trim();
   const errEl   = document.getElementById('modal-err');
 
@@ -931,6 +1010,7 @@ function submitModal() {
     project_tag: tag,
     due_at:      dueAt,
     recurrence:  recur,
+    pomodoros:   pomo,
     // On create: 'backlog' if checkbox; 'todo' otherwise.
     // On edit: preserve existing status (backend decides).
     status:      editId ? undefined : (toBacklog ? 'backlog' : 'todo'),
@@ -993,6 +1073,7 @@ document.addEventListener('keydown', e => {
   }
 
   switch(e.key) {
+    case 'p': { if (selectedId) togglePomodoro(selectedId); break; }
     case 'n': openCreate(); break;
     case 'e': { const t = selectedTask(); if(t) openEdit(t.id); break; }
     case '\\': {
@@ -1089,6 +1170,23 @@ document.getElementById('todo-resizer').addEventListener('mousedown', function(e
   document.getElementById('todo-resizer').classList.add('active');
 });
 
+// ── TASK RESIZER ───────────────────────────────────────────────────────────
+let resizeTaskId = null;
+let resizeTaskEl = null;
+let resizeStartY = 0;
+let resizeStartPomo = 0;
+
+function startTaskResize(e, id, el) {
+  const t = (state.tasks||[]).find(x => x.id === id);
+  if (!t) return;
+  resizeTaskId = id;
+  resizeTaskEl = el;
+  resizeStartY = e.clientY;
+  resizeStartPomo = t.pomodoros || 1;
+  document.body.style.cursor = 'ns-resize';
+  document.body.style.userSelect = 'none';
+}
+
 // ── GLOBAL RESIZE LISTENER ─────────────────────────────────────────────────
 document.addEventListener('mousemove', function(e) {
   if (isTodoResizing) {
@@ -1112,6 +1210,15 @@ document.addEventListener('mousemove', function(e) {
     if (newHeight > maxHeight) newHeight = maxHeight;
     document.getElementById('kan').style.height = newHeight + 'px';
   }
+
+  if (resizeTaskId && resizeTaskEl) {
+    const diffY = e.clientY - resizeStartY;
+    // 1 pomodoro = 24px height
+    const diffPomo = Math.round(diffY / 24);
+    let newPomo = resizeStartPomo + diffPomo;
+    if (newPomo < 1) newPomo = 1;
+    resizeTaskEl.style.minHeight = (newPomo * 24) + 'px';
+  }
 });
 
 document.addEventListener('mouseup', function() {
@@ -1127,6 +1234,23 @@ document.addEventListener('mouseup', function() {
     document.body.style.userSelect = '';
     document.getElementById('todo-resizer').classList.remove('active');
   }
+
+  if (resizeTaskId) {
+    const t = (state.tasks||[]).find(x => x.id === resizeTaskId);
+    if (t) {
+       const h = parseInt(resizeTaskEl.style.minHeight, 10) || 24;
+       const finalPomo = Math.max(1, Math.round(h / 24));
+       if (finalPomo !== (t.pomodoros || 1)) {
+         send({ type: 'update', task: { ...t, pomodoros: finalPomo } });
+       }
+    }
+    resizeTaskId = null;
+    resizeTaskEl = null;
+    if (!isResizing && !isTodoResizing) {
+      document.body.style.cursor = 'default';
+      document.body.style.userSelect = '';
+    }
+  }
 });
 
 // ── UTILS ──────────────────────────────────────────────────────────────────
@@ -1135,6 +1259,61 @@ function esc(s) {
     .replace(/&/g,'&amp;')
     .replace(/</g,'&lt;')
     .replace(/>/g,'&gt;');
+}
+
+// ── POMODORO ───────────────────────────────────────────────────────────────
+function togglePomodoro(id) {
+  if (pomoTimerId && pomoTaskId === id) {
+    clearInterval(pomoTimerId);
+    pomoTimerId = null;
+    pomoTaskId = null;
+    renderStatus();
+    return;
+  }
+  if (pomoTimerId) clearInterval(pomoTimerId);
+  pomoTaskId = id;
+  pomoEnd = Date.now() + 25 * 60000;
+  pomoTimerId = setInterval(pomoTick, 1000);
+  pomoTick();
+}
+
+function pomoTick() {
+  const left = pomoEnd - Date.now();
+  if (left <= 0) {
+    clearInterval(pomoTimerId);
+    pomoTimerId = null;
+    const t = state.tasks.find(x => x.id === pomoTaskId);
+    pomoTaskId = null;
+    playBeep();
+    renderStatus();
+    if (t) {
+      let p = t.pomodoros || 1;
+      if (p > 1) {
+        send({ type:'update', task: { ...t, pomodoros: p - 1 }});
+      } else {
+        send({ type:'setStatus', id: t.id, status: 'done' });
+      }
+    }
+    return;
+  }
+  renderStatus();
+}
+
+function playBeep() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.type = 'sine';
+    osc.frequency.value = 800;
+    gain.gain.setValueAtTime(0, ctx.currentTime);
+    gain.gain.linearRampToValueAtTime(1, ctx.currentTime + 0.05);
+    gain.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.5);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.5);
+  } catch(e) {}
 }
 
 // ── BOOT ───────────────────────────────────────────────────────────────────

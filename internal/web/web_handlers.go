@@ -41,6 +41,7 @@ type taskDTO struct {
 	DueAt       *string          `json:"due_at"` // "YYYY-MM-DD[THH:MM:SS]" or null
 	Status      store.TaskStatus `json:"status"` // optional; defaults to 'todo' on create
 	Recurrence  string           `json:"recurrence"`
+	Pomodoros   int              `json:"pomodoros"`
 }
 
 // handleWS upgrades the connection to WebSocket without external dependencies,
@@ -262,6 +263,10 @@ func dtoToTask(d *taskDTO) (store.Task, error) {
 		ProjectTag:  strings.TrimSpace(d.ProjectTag),
 		Status:      status,
 		Recurrence:  recurrence,
+		Pomodoros:   d.Pomodoros,
+	}
+	if t.Pomodoros < 1 {
+		t.Pomodoros = 1
 	}
 	if t.Title == "" {
 		return store.Task{}, fmt.Errorf("title is required")
