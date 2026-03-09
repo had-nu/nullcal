@@ -49,19 +49,25 @@ html,body{height:100%;background:var(--bg);color:var(--fg);font-family:var(--fon
 
 /* ── CALENDAR ── */
 #cal{flex:1.5;border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;min-height:0}
-#cal-grid{display:grid;grid-template-columns:repeat(7,1fr);flex:1;overflow:hidden}
-.cal-col{border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;cursor:default}
-.cal-col:last-child{border-right:none}
-.cal-col-hdr{padding:4px 6px;font-size:13px;font-weight:bold;letter-spacing:.05em;border-bottom:1px solid var(--border);white-space:nowrap;overflow:hidden;flex-shrink:0}
+.cal-row{display:grid;grid-template-columns:44px repeat(7,1fr)}
+.cal-col-hdr{padding:4px 6px;font-size:12px;font-weight:bold;letter-spacing:.05em;border-bottom:1px solid var(--border);border-right:1px solid var(--border);white-space:nowrap;overflow:hidden;text-align:center}
 .cal-col-hdr.today{color:var(--accent);background:#1c1c1c}
-.cal-col-body{padding:5px 4px;display:flex;flex-direction:column;gap:2px;overflow-y:auto;flex:1}
-.rb{font-size:13px;color:#666;padding:1px 0;flex-shrink:0}
-.rb-lbl{color:#777;font-weight:bold}
-.task-gap{height:3px}
-.cal-ev{display:flex;align-items:baseline;gap:5px;font-size:13px;padding:2px 4px;border-left:2px solid #4285f4;background:rgba(66,133,244,.08);border-radius:0 3px 3px 0;overflow:hidden;flex-shrink:0}
-.cal-ev-time{color:#4285f4;font-size:11px;white-space:nowrap;flex-shrink:0}
-.cal-ev-title{color:#ccc;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.time-badge{font-size:11px;color:var(--dim);margin-left:4px;white-space:nowrap;flex-shrink:0}
+.cal-allday-cell{border-right:1px solid var(--border);border-bottom:1px solid var(--border);min-height:24px;display:flex;flex-direction:column;gap:1px;padding:2px;background:var(--bg2)}
+.cal-col{border-right:1px solid var(--border);position:relative;height:1152px} /* 24 * 48px */
+.cal-col:last-child{border-right:none}
+#cal-scroll{flex:1;overflow-y:auto;overflow-x:hidden;background:var(--bg)}
+.cal-time-col{border-right:1px solid var(--border);position:relative;height:1152px}
+.cal-time-lbl{position:absolute;width:100%;text-align:right;padding-right:4px;font-size:10px;color:var(--dim);transform:translateY(-50%)}
+.cal-grid-line{position:absolute;width:100%;height:1px;background:var(--border);opacity:0.5}
+
+.abs-ev{position:absolute;width:calc(100% - 4px);left:2px;border-radius:2px;overflow:hidden;font-size:11px;padding:2px 4px;z-index:10;border-left:2px solid #4285f4;background:rgba(66,133,244,.15);color:#ccc;box-shadow:0 1px 2px rgba(0,0,0,.3)}
+.abs-ti{position:absolute;width:calc(100% - 4px);left:2px;border-radius:2px;overflow:hidden;font-size:11.5px;padding:2px 4px;z-index:11;background:var(--bg3);border:1px solid var(--border);color:var(--fg);box-shadow:0 1px 2px rgba(0,0,0,.3);cursor:pointer;display:flex;align-items:flex-start;gap:4px}
+.abs-ti:hover{border-color:var(--accent)}
+.abs-ti.selected{background:var(--sel-bg);color:var(--sel-fg) !important;border-color:var(--sel-fg)}
+.abs-ti .pfx{opacity:0.6;flex-shrink:0}
+
+.rb{font-size:11px;color:#666;padding:1px 4px;border-left:2px solid #444;background:rgba(255,255,255,.02);margin-top:1px}
+.rb-lbl{font-weight:bold;color:#777}
 
 /* ── TODO ── */
 #todo{width:220px;min-width:150px;max-width:400px;display:flex;flex-direction:column;overflow:hidden;min-height:0}
@@ -82,7 +88,8 @@ html,body{height:100%;background:var(--bg);color:var(--fg);font-family:var(--fon
 }
 #details-body textarea{resize:vertical;min-height:120px;flex:1}
 #details-body input:focus, #details-body textarea:focus{border-color:var(--accent)}
-#details-meta{display:flex;gap:10px;align-items:center}
+#details-meta{display:flex;flex-direction:column;gap:10px}
+.details-row{display:flex;gap:10px;width:100%}
 
 /* ── RESIZER ── */
 #resizer{height:6px;background:var(--bg2);border-bottom:1px solid var(--border);cursor:row-resize;flex-shrink:0;transition:background .15s}
@@ -112,7 +119,7 @@ html,body{height:100%;background:var(--bg);color:var(--fg);font-family:var(--fon
 .ti.t-duesoon{color:var(--duesoon)}
 .ti.t-overdue{color:var(--overdue)}
 .ti.t-done{color:var(--done);text-decoration:line-through}
-.ti .pfx{flex-shrink:0;width:12px;color:inherit;opacity:.6}
+.ti .pfx{flex-shrink:0;width:22px;color:inherit;opacity:.6}
 .ti .lbl{overflow:hidden;text-overflow:ellipsis;flex:1}
 .ti .tag{font-size:12px;background:#222;color:var(--dim);padding:0 4px;flex-shrink:0}
 
@@ -214,7 +221,11 @@ html,body{height:100%;background:var(--bg);color:var(--fg);font-family:var(--fon
 
       <!-- CALENDAR -->
       <div id="cal">
-        <div id="cal-grid"></div>
+        <div id="cal-hdr" class="cal-row"></div>
+        <div id="cal-allday" class="cal-row"></div>
+        <div id="cal-scroll">
+          <div id="cal-body" class="cal-row"></div>
+        </div>
       </div>
 
       <!-- TODO -->
@@ -237,27 +248,31 @@ html,body{height:100%;background:var(--bg);color:var(--fg);font-family:var(--fon
           <input id="dt-title" onblur="saveDetails()">
           
           <div id="details-meta">
-             <div style="flex:1">
-               <label>DUE TO</label>
-               <input id="dt-due" type="date" style="margin-top:4px" onblur="saveDetails()">
-             </div>
-             <div style="flex:1">
-               <label>TIME</label>
-               <input id="dt-time" type="time" style="margin-top:4px" onblur="saveDetails()">
-             </div>
-             <div style="flex:1">
-               <label>TAG</label>
-               <input id="dt-tag" style="margin-top:4px" placeholder="..." onblur="saveDetails()">
-             </div>
-             <div style="flex:1">
-               <label>RECURRENCE</label>
-               <select id="dt-recur" style="margin-top:4px;width:100%;background:transparent;border:1px solid var(--border);color:var(--fg);font-family:var(--font);font-size:13px;padding:6px 8px;outline:none;cursor:pointer" onchange="saveDetails()">
-                 <option value="">None</option>
-                 <option value="daily">Daily</option>
-                 <option value="weekly">Weekly</option>
-                 <option value="monthly">Monthly</option>
-               </select>
-             </div>
+            <div class="details-row">
+              <div style="flex:1">
+                <label>DUE TO</label>
+                <input id="dt-due" type="date" style="margin-top:4px" onblur="saveDetails()">
+              </div>
+              <div style="flex:1">
+                <label>TIME</label>
+                <input id="dt-time" type="time" style="margin-top:4px" onblur="saveDetails()">
+              </div>
+            </div>
+            <div class="details-row">
+              <div style="flex:1">
+                <label>TAG</label>
+                <input id="dt-tag" style="margin-top:4px" placeholder="..." onblur="saveDetails()">
+              </div>
+              <div style="flex:1">
+                <label>RECURRENCE</label>
+                <select id="dt-recur" style="margin-top:4px;width:100%;background:transparent;border:1px solid var(--border);color:var(--fg);font-family:var(--font);font-size:13px;padding:6px 8px;outline:none;cursor:pointer" onchange="saveDetails()">
+                  <option value="">None</option>
+                  <option value="daily">Daily</option>
+                  <option value="weekly">Weekly</option>
+                  <option value="monthly">Monthly</option>
+                </select>
+              </div>
+            </div>
           </div>
 
           <label>DESCRIPTION</label>
@@ -386,6 +401,7 @@ let editId = null;       // null = create mode
 let showTodo = true;
 let showKan  = true;
 let zenMode  = false;
+let showAllDone = false;
 let weekOffset = 0;      // weeks from current
 
 // ── WEBSOCKET ──────────────────────────────────────────────────────────────
@@ -494,8 +510,20 @@ function renderHeader() {
 }
 
 function renderCalendar() {
-  const grid = document.getElementById('cal-grid');
-  grid.innerHTML = '';
+  const hdrRow = document.getElementById('cal-hdr');
+  const allRow = document.getElementById('cal-allday');
+  const bdyRow = document.getElementById('cal-body');
+  
+  hdrRow.innerHTML = '<div class="cal-col-hdr" style="font-size:10px;color:var(--dim);border-right:1px solid var(--border)">GMT</div>';
+  allRow.innerHTML = '<div class="cal-allday-cell" style="font-size:10px;color:var(--dim);justify-content:center;align-items:center">ALL-DAY</div>';
+  
+  // Build Time Sidebar
+  let timeHtml = '<div class="cal-time-col">';
+  for (let i = 0; i < 24; i++) {
+    timeHtml += '<div class="cal-time-lbl" style="top:'+(i*48)+'px">'+String(i).padStart(2,'0')+':00</div>';
+  }
+  timeHtml += '</div>';
+  bdyRow.innerHTML = timeHtml;
 
   const base = mondayOf(addDays(new Date(), weekOffset * 7));
   const today = new Date(); today.setHours(0,0,0,0);
@@ -503,73 +531,109 @@ function renderCalendar() {
   for (let i = 0; i < 7; i++) {
     const day = addDays(base, i);
     const isToday = sameDay(day, today);
+    const dayStart = day.getTime();
+    const dayEnd = dayStart + 86400000;
 
-    const col = document.createElement('div');
-    col.className = 'cal-col';
-
+    // Header Col
     const hdr = document.createElement('div');
     hdr.className = 'cal-col-hdr' + (isToday ? ' today' : '');
     hdr.textContent = SHORT_DAYS[day.getDay()] + ' ' + String(day.getDate()).padStart(2,'0');
-    col.appendChild(hdr);
+    hdrRow.appendChild(hdr);
 
-    const body = document.createElement('div');
-    body.className = 'cal-col-body';
+    // All-Day Col
+    const allC = document.createElement('div');
+    allC.className = 'cal-allday-cell';
+    allRow.appendChild(allC);
 
-    // Routine blocks
-    const rbs = (state.routine_blocks||[]).filter(rb => rb.weekday === day.getDay());
-    rbs.forEach(rb => {
-      const el = document.createElement('div');
-      el.className = 'rb';
-      el.innerHTML = '<div class="rb-lbl">'+esc(rb.label)+'</div>' +
-                     '<div>'+esc(rb.start_time)+'-'+esc(rb.end_time)+'</div>';
-      body.appendChild(el);
-    });
-
-    if (rbs.length > 0) {
-      const gap = document.createElement('div'); gap.className = 'task-gap';
-      body.appendChild(gap);
+    // Body Col
+    const bdyC = document.createElement('div');
+    bdyC.className = 'cal-col';
+    
+    // Draw background grid lines
+    for (let h = 0; h < 24; h++) {
+      const gl = document.createElement('div');
+      gl.className = 'cal-grid-line';
+      gl.style.top = (h*48) + 'px';
+      bdyC.appendChild(gl);
     }
 
-    // Tasks for this day
-    const dayTasks = (state.tasks||[]).filter(t => {
-      if (!t.due_at) return false;
-      return sameDay(new Date(t.due_at), day);
+    // 1. Routine Blocks
+    const rbs = (state.routine_blocks||[]).filter(rb => rb.weekday === day.getDay());
+    rbs.forEach(rb => {
+      // parse start_time HH:MM
+      const [sh, sm] = rb.start_time.split(':').map(Number);
+      const [eh, em] = rb.end_time.split(':').map(Number);
+      const top = (sh + sm/60) * 48;
+      const h   = ((eh + em/60) - (sh + sm/60)) * 48;
+      
+      const el = document.createElement('div');
+      el.className = 'abs-ev rb';
+      el.style.top = top + 'px';
+      el.style.minHeight = Math.max(h, 15) + 'px';
+      el.innerHTML = '<span class="rb-lbl">'+esc(rb.label)+'</span>';
+      bdyC.appendChild(el);
     });
 
+    // 2. Local Tasks
+    const dayTasks = (state.tasks||[]).filter(t => t.due_at && sameDay(new Date(t.due_at), day));
     dayTasks.forEach(t => {
-      body.appendChild(makeTaskEl(t, { prefix: t.status==='done' ? '[x]' : '[ ]', compact: true }));
+      const dT = new Date(t.due_at);
+      if (t.due_at.length <= 10 || (dT.getHours()===0 && dT.getMinutes()===0)) {
+        // all-day task
+        allC.appendChild(makeTaskEl(t, { prefix: t.status==='done'?'[x]':'[ ]', compact:true, noabs:true }));
+      } else {
+        const top = (dT.getHours() + dT.getMinutes()/60) * 48;
+        const el = makeTaskEl(t, { prefix: t.status==='done'?'[x]':'[ ]', compact:true });
+        el.className = el.className.replace('ti','abs-ti'); // swap class
+        el.style.top = top + 'px';
+        el.style.minHeight = '24px'; // default 30m
+        bdyC.appendChild(el);
+      }
     });
 
-    // GCal / external calendar events
+    // 3. GCal Events
     const dayEvents = (state.calendar_events||[]).filter(ev => {
       if (!ev.start_at) return false;
       const dStart = new Date(ev.start_at);
       const dEnd   = new Date(ev.end_at || ev.start_at);
-      
-      const dayStart = day.getTime();
-      const dayEnd = dayStart + 86400000;
-      
       if (dStart.getTime() === dEnd.getTime()) {
          return dStart.getTime() >= dayStart && dStart.getTime() < dayEnd;
       }
       return dStart.getTime() < dayEnd && dEnd.getTime() > dayStart;
     });
+
     dayEvents.forEach(ev => {
-      const el = document.createElement('div');
-      el.className = 'cal-ev';
-      const start = new Date(ev.start_at);
-      const end   = new Date(ev.end_at);
-      const allDay = start.getHours()===0 && start.getMinutes()===0 &&
-                     end.getHours()===0   && end.getMinutes()===0;
-      const timeStr = allDay ? 'all-day' : fmtTime(start)+'-'+fmtTime(end);
-      el.innerHTML = '<span class="cal-ev-time">'+esc(timeStr)+'</span>' +
-                     '<span class="cal-ev-title">'+esc(ev.title)+'</span>';
-      el.title = ev.description || ev.title;
-      body.appendChild(el);
+      const dStart = new Date(ev.start_at);
+      const dEnd   = new Date(ev.end_at || ev.start_at);
+      const allDay = dStart.getHours()===0 && dStart.getMinutes()===0 &&
+                     dEnd.getHours()===0   && dEnd.getMinutes()===0;
+                     
+      if (allDay) {
+        const el = document.createElement('div');
+        el.className = 'abs-ev';
+        el.style.position = 'relative'; // reset to flex flow in allday col
+        el.style.width = '100%';
+        el.innerHTML = esc(ev.title);
+        el.title = ev.description || ev.title;
+        allC.appendChild(el);
+      } else {
+        // limit bounds to current day (starts prev day -> 00:00, ends next day -> 24:00)
+        let sh = dStart.getTime() < dayStart ? 0 : dStart.getHours() + dStart.getMinutes()/60;
+        let eh = dEnd.getTime() > dayEnd ? 24 : dEnd.getHours() + dEnd.getMinutes()/60;
+        const top = sh * 48;
+        const h = (eh - sh) * 48;
+        
+        const el = document.createElement('div');
+        el.className = 'abs-ev';
+        el.style.top = top + 'px';
+        el.style.minHeight = Math.max(h, 20) + 'px';
+        el.innerHTML = esc(ev.title);
+        el.title = ev.description || ev.title;
+        bdyC.appendChild(el);
+      }
     });
 
-    col.appendChild(body);
-    grid.appendChild(col);
+    bdyRow.appendChild(bdyC);
   }
 }
 
@@ -586,18 +650,42 @@ function renderKanban() {
   ['backlog','doing','done'].forEach(status => {
     const el = document.getElementById('kan-'+status);
     el.innerHTML = '';
-    (state.tasks||[])
-      .filter(t => t.status === status)
-      .forEach(t => el.appendChild(makeTaskEl(t, {
-        prefix: status==='done' ? '[x]' : '[ ]',
+    let items = (state.tasks||[]).filter(t => t.status === status);
+    
+    if (status === 'done') {
+      const total = items.length;
+      if (!showAllDone && total > 10) {
+        // Assume the last 10 in the list are the most relevant (default server sorting is due_at ASC)
+        items = items.slice(total - 10);
+      }
+      items.forEach(t => el.appendChild(makeTaskEl(t, {
+        prefix: '[x]',
         showTag: true
       })));
+      
+      if (total > 10) {
+        const btn = document.createElement('div');
+        btn.style = "text-align:center;font-size:11px;color:var(--dim);cursor:pointer;padding:8px 4px;margin-top:auto;border-top:1px dashed var(--border)";
+        btn.textContent = showAllDone ? "Show less" : "Show all " + total + " completed tasks...";
+        btn.onclick = () => { showAllDone = !showAllDone; renderKanban(); };
+        el.appendChild(btn);
+      }
+    } else {
+      items.forEach(t => el.appendChild(makeTaskEl(t, {
+        prefix: '[ ]',
+        showTag: true
+      })));
+    }
   });
 }
 
 function makeTaskEl(t, opts) {
   const el = document.createElement('div');
-  el.className = 'ti ' + dueClass(t) + (t.id===selectedId ? ' selected' : '');
+  // The 'ti' class is for general task items. 'abs-task' is added by renderCalendar for timed events.
+  // If opts.noabs is true, it means it's an all-day task in the calendar or a task in todo/kanban,
+  // so it should not get the 'abs-task' class by default here.
+  let baseClass = opts.noabs ? 'ti ' : 'ti ';
+  el.className = baseClass + dueClass(t) + (t.id===selectedId ? ' selected' : '');
   el.dataset.id = t.id;
 
   const pfx = document.createElement('span');
@@ -907,6 +995,17 @@ document.addEventListener('keydown', e => {
   switch(e.key) {
     case 'n': openCreate(); break;
     case 'e': { const t = selectedTask(); if(t) openEdit(t.id); break; }
+    case '\\': {
+      openCreate();
+      document.getElementById('f-title').value = "Focus /pomodoro";
+      const now = new Date();
+      const end = new Date(now.getTime() + 25 * 60000);
+      document.getElementById('f-due').value = end.toISOString().slice(0, 10);
+      document.getElementById('f-time').value = String(end.getHours()).padStart(2,'0') + ':' + String(end.getMinutes()).padStart(2,'0');
+      // small timeout to select the text so user can just type a new title if they want
+      setTimeout(() => document.getElementById('f-title').select(), 50);
+      break;
+    }
     case 'j': {
       const els = Array.from(document.querySelectorAll('.ti'));
       if(els.length===0) break;
