@@ -64,8 +64,11 @@ html,body{height:100%;background:var(--bg);color:var(--fg);font-family:var(--fon
 .time-badge{font-size:11px;color:var(--dim);margin-left:4px;white-space:nowrap;flex-shrink:0}
 
 /* ── TODO ── */
-#todo{flex:0.6;display:flex;flex-direction:column;overflow:hidden;min-height:0;max-width:220px}
+#todo{width:220px;min-width:150px;max-width:400px;display:flex;flex-direction:column;overflow:hidden;min-height:0}
 #todo.hidden{display:none}
+#todo-resizer{width:4px;cursor:col-resize;background:var(--bg2);border-right:1px solid var(--border);border-left:1px solid var(--border);transition:background .15s;flex-shrink:0}
+#todo-resizer:hover, #todo-resizer.active{background:var(--border)}
+#todo-resizer.hidden{display:none}
 
 /* ── DETAILS (INSPECTOR) ── */
 #details{flex:0 0 320px;border-left:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;background:var(--bg2)}
@@ -198,16 +201,6 @@ html,body{height:100%;background:var(--bg);color:var(--fg);font-family:var(--fon
     <button id="btn-todo" onclick="toggleTodo()">[ | ] todo</button>
     <button id="btn-kan"  onclick="toggleKan()">[ - ] kanban</button>
     <div class="sep"></div>
-    <select id="opt-date" onchange="changeFormat()" style="background:var(--bg);border:1px solid var(--border);color:var(--dim);border-radius:2px;font-family:var(--font);font-size:12px;outline:none;cursor:pointer">
-      <option value="DD/MM/YYYY">DD/MM/YYYY</option>
-      <option value="MM/DD/YYYY">MM/DD/YYYY</option>
-      <option value="YYYY-MM-DD">YYYY-MM-DD</option>
-    </select>
-    <select id="opt-time" onchange="changeFormat()" style="background:var(--bg);border:1px solid var(--border);color:var(--dim);border-radius:2px;font-family:var(--font);font-size:12px;outline:none;cursor:pointer">
-      <option value="24h">24h</option>
-      <option value="12h">12h AM/PM</option>
-    </select>
-    <div style="width:4px"></div>
     <div class="week-nav">
       <button onclick="shiftWeek(-1)">◀ h</button>
       <span id="week-label"></span>
@@ -230,6 +223,9 @@ html,body{height:100%;background:var(--bg);color:var(--fg);font-family:var(--fon
         <div id="todo-list" style="padding:6px 10px;display:flex;flex-direction:column;gap:3px;overflow-y:auto;flex:1"></div>
       </div>
 
+      <!-- TODO RESIZER -->
+      <div id="todo-resizer"></div>
+
       <!-- DETAILS (INSPECTOR) -->
       <div id="details" class="hidden">
         <div class="pane-hdr" style="display:flex;justify-content:space-between">
@@ -243,7 +239,7 @@ html,body{height:100%;background:var(--bg);color:var(--fg);font-family:var(--fon
           <div id="details-meta">
              <div style="flex:1">
                <label>DUE TO</label>
-               <input id="dt-due" style="margin-top:4px" placeholder="YYYY-MM-DD" onblur="saveDetails()">
+               <input id="dt-due" type="date" style="margin-top:4px" onblur="saveDetails()">
              </div>
              <div style="flex:1">
                <label>TIME</label>
@@ -319,6 +315,7 @@ html,body{height:100%;background:var(--bg);color:var(--fg);font-family:var(--fon
     <span><kbd>b</kbd> backlog</span>
     <span><kbd>d</kbd> doing</span>
     <span><kbd>x</kbd> done</span>
+    <span><kbd>m</kbd> details</span>
     <span><kbd>del</kbd> delete</span>
     <span><kbd>|</kbd> todo split</span>
     <span><kbd>-</kbd> kanban split</span>
@@ -341,7 +338,7 @@ html,body{height:100%;background:var(--bg);color:var(--fg);font-family:var(--fon
     <div style="display:flex;gap:8px">
       <div style="flex:1">
         <label>Due Date</label>
-        <input id="f-due" placeholder="YYYY-MM-DD" maxlength="10">
+        <input id="f-due" type="date">
       </div>
       <div style="flex:1">
         <label>Time (HH:MM)</label>
@@ -390,20 +387,6 @@ let showTodo = true;
 let showKan  = true;
 let zenMode  = false;
 let weekOffset = 0;      // weeks from current
-
-let prefDateFmt = localStorage.getItem('ncal-date') || 'DD/MM/YYYY';
-let prefTimeFmt = localStorage.getItem('ncal-time') || '24h';
-
-document.getElementById('opt-date').value = prefDateFmt;
-document.getElementById('opt-time').value = prefTimeFmt;
-
-function changeFormat() {
-  prefDateFmt = document.getElementById('opt-date').value;
-  prefTimeFmt = document.getElementById('opt-time').value;
-  localStorage.setItem('ncal-date', prefDateFmt);
-  localStorage.setItem('ncal-time', prefTimeFmt);
-  render();
-}
 
 // ── WEBSOCKET ──────────────────────────────────────────────────────────────
 function connect() {
@@ -472,23 +455,18 @@ function dueClass(task) {
   return 't-normal';
 }
 
+const SHORT_MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
 function fmtDate(d) {
   const dd = String(d.getDate()).padStart(2,'0');
-  const mm = String(d.getMonth()+1).padStart(2,'0');
+  const month = SHORT_MONTHS[d.getMonth()];
   const yy = d.getFullYear();
-  if (prefDateFmt === 'MM/DD/YYYY') return mm+'/'+dd+'/'+yy;
-  if (prefDateFmt === 'YYYY-MM-DD') return yy+'-'+mm+'-'+dd;
-  return dd+'/'+mm+'/'+yy;
+  return dd+' '+month+' '+yy;
 }
 
 function fmtTime(d) {
   let h = d.getHours();
   const m = String(d.getMinutes()).padStart(2,'0');
-  if (prefTimeFmt === '12h') {
-    const ampm = h >= 12 ? 'PM' : 'AM';
-    h = h % 12 || 12;
-    return h + ':' + m + ' ' + ampm;
-  }
   return String(h).padStart(2,'0') + ':' + m;
 }
 
@@ -559,13 +537,22 @@ function renderCalendar() {
     });
 
     dayTasks.forEach(t => {
-      body.appendChild(makeTaskEl(t, { prefix: t.status==='done' ? 'x' : '-', compact: true }));
+      body.appendChild(makeTaskEl(t, { prefix: t.status==='done' ? '[x]' : '[ ]', compact: true }));
     });
 
     // GCal / external calendar events
     const dayEvents = (state.calendar_events||[]).filter(ev => {
       if (!ev.start_at) return false;
-      return sameDay(new Date(ev.start_at), day);
+      const dStart = new Date(ev.start_at);
+      const dEnd   = new Date(ev.end_at || ev.start_at);
+      
+      const dayStart = day.getTime();
+      const dayEnd = dayStart + 86400000;
+      
+      if (dStart.getTime() === dEnd.getTime()) {
+         return dStart.getTime() >= dayStart && dStart.getTime() < dayEnd;
+      }
+      return dStart.getTime() < dayEnd && dEnd.getTime() > dayStart;
     });
     dayEvents.forEach(ev => {
       const el = document.createElement('div');
@@ -591,7 +578,7 @@ function renderTodo() {
   list.innerHTML = '';
   // Only show tasks with status 'todo' — backlog tasks live in kanban only.
   const active = (state.tasks||[]).filter(t => t.status === 'todo');
-  active.forEach(t => list.appendChild(makeTaskEl(t, { prefix: '-' })));
+  active.forEach(t => list.appendChild(makeTaskEl(t, { prefix: '[ ]' })));
 }
 
 function renderKanban() {
@@ -602,7 +589,7 @@ function renderKanban() {
     (state.tasks||[])
       .filter(t => t.status === status)
       .forEach(t => el.appendChild(makeTaskEl(t, {
-        prefix: status==='done' ? 'x' : '-',
+        prefix: status==='done' ? '[x]' : '[ ]',
         showTag: true
       })));
   });
@@ -615,7 +602,8 @@ function makeTaskEl(t, opts) {
 
   const pfx = document.createElement('span');
   pfx.className = 'pfx';
-  pfx.textContent = t.id===selectedId ? '>' : (opts.prefix||'-');
+  pfx.textContent = t.id===selectedId ? '>' : (opts.prefix||'[ ]');
+  if (opts.prefix === '[x]') pfx.style.opacity = '0.5';
 
   const lbl = document.createElement('span');
   lbl.className = 'lbl';
@@ -662,10 +650,12 @@ function updateToolbar() {
   // Zen Mode overrides
   if (zenMode) {
     document.getElementById('todo').classList.add('hidden');
+    document.getElementById('todo-resizer').classList.add('hidden');
     document.getElementById('kan').classList.add('hidden');
     document.getElementById('resizer').style.display = 'none';
   } else {
     document.getElementById('todo').classList.toggle('hidden', !showTodo);
+    document.getElementById('todo-resizer').classList.toggle('hidden', !showTodo);
     document.getElementById('kan').classList.toggle('hidden', !showKan);
     document.getElementById('resizer').style.display = showKan ? 'block' : 'none';
   }
@@ -699,12 +689,8 @@ function selectTask(id) {
       document.getElementById('dt-recur').value = t.recurrence || '';
       document.getElementById('dt-desc').value = t.description || '';
       
-      if (!zenMode) {
-        // small delay to allow UI to render the element before focusing
-        setTimeout(() => {
-          if (!t.description) document.getElementById('dt-desc').focus();
-        }, 50);
-      }
+      // Removed the document.getElementById('details').classList.remove('hidden') auto-popup
+      // It must be triggered explicitly with 'm'
     }
   }
 }
@@ -952,7 +938,11 @@ document.addEventListener('keydown', e => {
       if (t) send({ type:'setStatus', id:t.id, status: t.status==='backlog' ? 'todo' : 'backlog' });
       break;
     }
-    case 'm': case 'Enter': {
+    case 'm': {
+      document.getElementById('details').classList.toggle('hidden');
+      break;
+    }
+    case 'Enter': {
       const t = selectedTask();
       if (t) {
         const next = {todo:'backlog',backlog:'doing',doing:'done',done:'todo'}[t.status]||'todo';
@@ -990,23 +980,39 @@ document.getElementById('resizer').addEventListener('mousedown', function(e) {
   document.getElementById('resizer').classList.add('active');
 });
 
+// ── TODO RESIZER ───────────────────────────────────────────────────────────
+let isTodoResizing = false;
+
+document.getElementById('todo-resizer').addEventListener('mousedown', function(e) {
+  isTodoResizing = true;
+  document.body.style.cursor = 'col-resize';
+  document.body.style.userSelect = 'none';
+  document.getElementById('todo-resizer').classList.add('active');
+});
+
+// ── GLOBAL RESIZE LISTENER ─────────────────────────────────────────────────
 document.addEventListener('mousemove', function(e) {
-  if (!isResizing) return;
-  // Calculate new height for KANBAN based on mouse position from bottom of #body
-  const bodyEl = document.getElementById('body');
-  const bodyRect = bodyEl.getBoundingClientRect();
-  
-  // Height = Body Bottom - Mouse Y
-  let newHeight = bodyRect.bottom - e.clientY;
-  
-  // Boundaries
-  const minHeight = 100;
-  const maxHeight = bodyRect.height - 150; // Keep some space for calendar
+  if (isTodoResizing) {
+    const todoRect = document.getElementById('cal').getBoundingClientRect();
+    // Since #todo is between #cal and details, the new width is mouse.X - left of #todo
+    // Actually, #todo is placed immediately after #cal.
+    const newW = e.clientX - todoRect.right;
+    if (newW >= 150 && newW <= 600) {
+      document.getElementById('todo').style.width = newW + 'px';
+      document.getElementById('todo').style.flex = 'none';
+    }
+  }
 
-  if (newHeight < minHeight) newHeight = minHeight;
-  if (newHeight > maxHeight) newHeight = maxHeight;
-
-  document.getElementById('kan').style.height = newHeight + 'px';
+  if (isResizing) {
+    const bodyEl = document.getElementById('body');
+    const bodyRect = bodyEl.getBoundingClientRect();
+    let newHeight = bodyRect.bottom - e.clientY;
+    const minHeight = 100;
+    const maxHeight = bodyRect.height - 150;
+    if (newHeight < minHeight) newHeight = minHeight;
+    if (newHeight > maxHeight) newHeight = maxHeight;
+    document.getElementById('kan').style.height = newHeight + 'px';
+  }
 });
 
 document.addEventListener('mouseup', function() {
@@ -1015,6 +1021,12 @@ document.addEventListener('mouseup', function() {
     document.body.style.cursor = 'default';
     document.body.style.userSelect = '';
     document.getElementById('resizer').classList.remove('active');
+  }
+  if (isTodoResizing) {
+    isTodoResizing = false;
+    document.body.style.cursor = 'default';
+    document.body.style.userSelect = '';
+    document.getElementById('todo-resizer').classList.remove('active');
   }
 });
 
