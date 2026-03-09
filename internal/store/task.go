@@ -143,10 +143,20 @@ func (s *Store) DeleteTask(id string) error {
 }
 
 // SetTaskStatus updates the status of a task and sets completed_at
-// when transitioning to done.
+// when transitioning to done. For recurring tasks, it also spawns the next occurrence.
 func (s *Store) SetTaskStatus(id string, status TaskStatus) error {
 	if !ValidTaskStatus(status) {
 		return fmt.Errorf("invalid task status: %q", status)
+	}
+
+	// For recurrence spawning, we need the original task if marking as done
+	var t *Task
+	var err error
+	if status == TaskStatusDone {
+		t, err = s.GetTask(id)
+		if err != nil {
+			return err
+		}
 	}
 
 	var completedAt *time.Time
@@ -169,6 +179,36 @@ func (s *Store) SetTaskStatus(id string, status TaskStatus) error {
 	}
 	if rows == 0 {
 		return fmt.Errorf("task %s not found", id)
+	}
+
+	// Spawn next recurrence if applicable and transitioning to done
+	if status == TaskStatusDone && t != nil && t.Recurrence != RecurrenceNone && t.Recurrence != "" {
+		nextDue := time.Now().UTC() // fallback
+		if t.DueAt != nil {
+			nextDue = *t.DueAt
+		}
+		
+		switch t.Recurrence {
+		case RecurrenceDaily:
+			nextDue = nextDue.AddDate(0, 0, 1)
+		case RecurrenceWeekly:
+			nextDue = nextDue.AddDate(0, 0, 7)
+		case RecurrenceMonthly:
+			nextDue = nextDue.AddDate(0, 1, 0)
+		}
+
+		nextTask := &Task{
+			Title:       t.Title,
+			Description: t.Description,
+			ProjectTag:  t.ProjectTag,
+			Status:      TaskStatusTodo,
+			DueAt:       &nextDue,
+			Recurrence:  t.Recurrence,
+			// ID generated, CompletedAt nil, GCalEventID nil
+		}
+		if err := s.CreateTask(nextTask); err != nil {
+			return fmt.Errorf("spawning recurring task: %w", err)
+		}
 	}
 
 	return nil

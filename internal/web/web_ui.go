@@ -253,6 +253,15 @@ html,body{height:100%;background:var(--bg);color:var(--fg);font-family:var(--fon
                <label>TAG</label>
                <input id="dt-tag" style="margin-top:4px" placeholder="..." onblur="saveDetails()">
              </div>
+             <div style="flex:1">
+               <label>RECURRENCE</label>
+               <select id="dt-recur" style="margin-top:4px;width:100%;background:transparent;border:1px solid var(--border);color:var(--fg);font-family:var(--font);font-size:13px;padding:6px 8px;outline:none;cursor:pointer" onchange="saveDetails()">
+                 <option value="">None</option>
+                 <option value="daily">Daily</option>
+                 <option value="weekly">Weekly</option>
+                 <option value="monthly">Monthly</option>
+               </select>
+             </div>
           </div>
 
           <label>DESCRIPTION</label>
@@ -304,12 +313,16 @@ html,body{height:100%;background:var(--bg);color:var(--fg);font-family:var(--fon
   </div>
   <div id="help">
     <span><kbd>n</kbd> new</span>
-    <span><kbd>e</kbd> edit selected</span>
-    <span><kbd>d</kbd> toggle doing</span>
-    <span><kbd>x</kbd> toggle done</span>
+    <span><kbd>e</kbd> edit</span>
+    <span><kbd>j/k</kbd> up/down</span>
+    <span><kbd>t</kbd> today</span>
+    <span><kbd>b</kbd> backlog</span>
+    <span><kbd>d</kbd> doing</span>
+    <span><kbd>x</kbd> done</span>
     <span><kbd>del</kbd> delete</span>
     <span><kbd>|</kbd> todo split</span>
     <span><kbd>-</kbd> kanban split</span>
+    <span><kbd>z</kbd> zen mode</span>
     <span><kbd>h/l</kbd> week</span>
   </div>
 
@@ -333,6 +346,15 @@ html,body{height:100%;background:var(--bg);color:var(--fg);font-family:var(--fon
       <div style="flex:1">
         <label>Time (HH:MM)</label>
         <input id="f-time" type="time" placeholder="HH:MM">
+      </div>
+      <div style="flex:1">
+        <label>Recurrence</label>
+        <select id="f-recur" style="display:block;width:100%;background:var(--bg);border:1px solid var(--border);color:var(--fg);font-family:var(--font);font-size:14px;padding:4px 8px;outline:none;cursor:pointer">
+          <option value="">None</option>
+          <option value="daily">Daily</option>
+          <option value="weekly">Weekly</option>
+          <option value="monthly">Monthly</option>
+        </select>
       </div>
     </div>
     <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-top:4px">
@@ -366,6 +388,7 @@ let selectedId = null;
 let editId = null;       // null = create mode
 let showTodo = true;
 let showKan  = true;
+let zenMode  = false;
 let weekOffset = 0;      // weeks from current
 
 let prefDateFmt = localStorage.getItem('ncal-date') || 'DD/MM/YYYY';
@@ -596,7 +619,7 @@ function makeTaskEl(t, opts) {
 
   const lbl = document.createElement('span');
   lbl.className = 'lbl';
-  lbl.textContent = t.title;
+  lbl.innerHTML = (t.recurrence && t.recurrence !== 'none' ? '<span style="font-size:10px;margin-right:2px;vertical-align:middle;color:var(--accent)">↻</span>' : '') + esc(t.title);
 
   el.appendChild(pfx);
   el.appendChild(lbl);
@@ -636,9 +659,16 @@ function renderStatus() {
 function updateToolbar() {
   document.getElementById('btn-todo').classList.toggle('active', showTodo);
   document.getElementById('btn-kan').classList.toggle('active', showKan);
-  document.getElementById('todo').classList.toggle('hidden', !showTodo);
-  document.getElementById('kan').classList.toggle('hidden', !showKan);
-  document.getElementById('resizer').classList.toggle('hidden', !showKan);
+  // Zen Mode overrides
+  if (zenMode) {
+    document.getElementById('todo').classList.add('hidden');
+    document.getElementById('kan').classList.add('hidden');
+    document.getElementById('resizer').style.display = 'none';
+  } else {
+    document.getElementById('todo').classList.toggle('hidden', !showTodo);
+    document.getElementById('kan').classList.toggle('hidden', !showKan);
+    document.getElementById('resizer').style.display = showKan ? 'block' : 'none';
+  }
 }
 
 // ── SELECTION ──────────────────────────────────────────────────────────────
@@ -666,25 +696,29 @@ function selectTask(id) {
       document.getElementById('dt-time').value = dueT;
 
       document.getElementById('dt-tag').value = t.project_tag || '';
+      document.getElementById('dt-recur').value = t.recurrence || '';
       document.getElementById('dt-desc').value = t.description || '';
       
-      // small delay to allow UI to render the element before focusing
-      setTimeout(() => {
-        if (!t.description) document.getElementById('dt-desc').focus();
-      }, 50);
+      if (!zenMode) {
+        // small delay to allow UI to render the element before focusing
+        setTimeout(() => {
+          if (!t.description) document.getElementById('dt-desc').focus();
+        }, 50);
+      }
     }
   }
 }
 
 function selectedTask() {
-  return (state.tasks||[]).find(t => t.id === selectedId) || null;
+  if (!selectedId) return null;
+  return state.tasks.find(x => x.id === selectedId) || null;
 }
 
 // ── DETAILS (INSPECTOR) ────────────────────────────────────────────────────
 function renderDetails() {
   const dEl = document.getElementById('details');
   const t = selectedTask();
-  if (!t) {
+  if (!t || zenMode) {
     dEl.classList.add('hidden');
     return;
   }
@@ -700,11 +734,21 @@ function saveDetails() {
   const t = state.tasks.find(x => x.id === selectedId);
   if (!t) return;
 
-  const nTitle = document.getElementById('dt-title').value.trim();
+  let nTitle = document.getElementById('dt-title').value.trim();
   const nDesc  = document.getElementById('dt-desc').value.trim();
-  const nTag   = document.getElementById('dt-tag').value.trim();
+  let nTag     = document.getElementById('dt-tag').value.trim();
   const nDueD  = document.getElementById('dt-due').value.trim();
   const nDueT  = document.getElementById('dt-time').value.trim();
+  const nRecur = document.getElementById('dt-recur').value;
+
+  // Check for slash command in title
+  const match = nTitle.match(/ \/(\w+)$/);
+  if (match) {
+    nTag = match[1];
+    nTitle = nTitle.replace(match[0], '');
+    document.getElementById('dt-title').value = nTitle;
+    document.getElementById('dt-tag').value = nTag;
+  }
 
   let nDue = null;
   if (nDueD && /^\d{4}-\d{2}-\d{2}$/.test(nDueD)) {
@@ -717,21 +761,22 @@ function saveDetails() {
     return;
   }
 
-  if (nTitle!==t.title || nDesc!==(t.description||'') || nTag!==(t.project_tag||'') || nDue!==(t.due_at||null)) {
-    const fresh = { ...t, title:nTitle, description:nDesc, project_tag:nTag, due_at:nDue };
+  if (nTitle!==t.title || nDesc!==(t.description||'') || nTag!==(t.project_tag||'') || nDue!==(t.due_at||null) || nRecur!==(t.recurrence||'')) {
+    const fresh = { ...t, title:nTitle, description:nDesc, project_tag:nTag, due_at:nDue, recurrence:nRecur };
     send({ type:'update', task:fresh });
   }
 }
 
 // ── WEEK NAV ───────────────────────────────────────────────────────────────
-function shiftWeek(d) {
-  weekOffset += d;
+function shiftWeek(n) {
+  weekOffset += n;
   render();
 }
 
 // ── LAYOUT TOGGLES ─────────────────────────────────────────────────────────
-function toggleTodo() { showTodo = !showTodo; render(); }
-function toggleKan()  { showKan  = !showKan;  render(); }
+function toggleTodo() { showTodo = !showTodo; if(!zenMode) render(); }
+function toggleKan()  { showKan  = !showKan;  if(!zenMode) render(); }
+function toggleZen()  { zenMode = !zenMode; render(); }
 
 // ── MODAL ──────────────────────────────────────────────────────────────────
 function openCreate() {
@@ -742,6 +787,7 @@ function openCreate() {
   document.getElementById('f-tag').value      = '';
   document.getElementById('f-due').value      = '';
   document.getElementById('f-time').value     = '';
+  document.getElementById('f-recur').value    = '';
   document.getElementById('f-backlog').checked = false;
   document.getElementById('modal-err').textContent = '';
   document.getElementById('modal-overlay').classList.add('open');
@@ -766,6 +812,7 @@ function openEdit(id) {
   } else {
     document.getElementById('f-time').value = '';
   }
+  document.getElementById('f-recur').value     = t.recurrence || '';
   document.getElementById('f-backlog').checked = t.status === 'backlog';
   document.getElementById('modal-err').textContent = '';
   document.getElementById('modal-overlay').classList.add('open');
@@ -777,11 +824,20 @@ function closeModal() {
 }
 
 function submitModal() {
-  const title   = document.getElementById('f-title').value.trim();
+  let title   = document.getElementById('f-title').value.trim();
   const dueDate = document.getElementById('f-due').value.trim();
   const dueTime = document.getElementById('f-time').value.trim();
   const toBacklog = document.getElementById('f-backlog').checked;
+  const recur   = document.getElementById('f-recur').value;
+  let tag       = document.getElementById('f-tag').value.trim();
   const errEl   = document.getElementById('modal-err');
+
+  // Check for slash command in title
+  const match = title.match(/ \/(\w+)$/);
+  if (match) {
+    tag = match[1];
+    title = title.replace(match[0], '');
+  }
 
   if (!title) { errEl.textContent = '! title is required'; return; }
   if (dueDate && !/^\d{4}-\d{2}-\d{2}$/.test(dueDate)) {
@@ -798,8 +854,9 @@ function submitModal() {
     id:          editId || '',
     title,
     description: document.getElementById('f-desc').value.trim(),
-    project_tag: document.getElementById('f-tag').value.trim(),
+    project_tag: tag,
     due_at:      dueAt,
+    recurrence:  recur,
     // On create: 'backlog' if checkbox; 'todo' otherwise.
     // On edit: preserve existing status (backend decides).
     status:      editId ? undefined : (toBacklog ? 'backlog' : 'todo'),
@@ -864,6 +921,22 @@ document.addEventListener('keydown', e => {
   switch(e.key) {
     case 'n': openCreate(); break;
     case 'e': { const t = selectedTask(); if(t) openEdit(t.id); break; }
+    case 'j': {
+      const els = Array.from(document.querySelectorAll('.ti'));
+      if(els.length===0) break;
+      const idx = els.findIndex(el => el.dataset.id === selectedId);
+      if(idx===-1) selectTask(els[0].dataset.id);
+      else if(idx < els.length-1) selectTask(els[idx+1].dataset.id);
+      break;
+    }
+    case 'k': {
+      const els = Array.from(document.querySelectorAll('.ti'));
+      if(els.length===0) break;
+      const idx = els.findIndex(el => el.dataset.id === selectedId);
+      if(idx===-1) selectTask(els[els.length-1].dataset.id);
+      else if(idx > 0) selectTask(els[idx-1].dataset.id);
+      break;
+    }
     case 'x': {
       const t = selectedTask();
       if (t) send({ type:'setStatus', id:t.id, status: t.status==='done' ? 'todo' : 'done' });
@@ -872,6 +945,11 @@ document.addEventListener('keydown', e => {
     case 'd': {
       const t = selectedTask();
       if (t) send({ type:'setStatus', id:t.id, status: t.status==='doing' ? 'todo' : 'doing' });
+      break;
+    }
+    case 'b': {
+      const t = selectedTask();
+      if (t) send({ type:'setStatus', id:t.id, status: t.status==='backlog' ? 'todo' : 'backlog' });
       break;
     }
     case 'm': case 'Enter': {
@@ -885,8 +963,10 @@ document.addEventListener('keydown', e => {
     case 'Delete': case 'D': {
       const t = selectedTask(); if(t) openConfirm(t.id); break;
     }
+    case 't': weekOffset = 0; render(); break;
     case '|': toggleTodo(); break;
     case '-': toggleKan();  break;
+    case 'z': zenMode = !zenMode; render(); break;
     case 'h': shiftWeek(-1); break;
     case 'l': shiftWeek(1);  break;
   }

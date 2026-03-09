@@ -34,12 +34,13 @@ type inboundMsg struct {
 
 // taskDTO is the shape the browser uses to describe a task on create/update.
 type taskDTO struct {
-	ID          string         `json:"id"`
-	Title       string         `json:"title"`
-	Description string         `json:"description"`
-	ProjectTag  string         `json:"project_tag"`
-	DueAt       *string        `json:"due_at"` // "YYYY-MM-DD[THH:MM:SS]" or null
+	ID          string           `json:"id"`
+	Title       string           `json:"title"`
+	Description string           `json:"description"`
+	ProjectTag  string           `json:"project_tag"`
+	DueAt       *string          `json:"due_at"` // "YYYY-MM-DD[THH:MM:SS]" or null
 	Status      store.TaskStatus `json:"status"` // optional; defaults to 'todo' on create
+	Recurrence  string           `json:"recurrence"`
 }
 
 // handleWS upgrades the connection to WebSocket without external dependencies,
@@ -245,12 +246,22 @@ func dtoToTask(d *taskDTO) (store.Task, error) {
 	if !store.ValidTaskStatus(status) {
 		status = store.TaskStatusTodo // default for new tasks
 	}
+	
+	recurrence := store.Recurrence(d.Recurrence)
+	switch recurrence {
+	case store.RecurrenceDaily, store.RecurrenceWeekly, store.RecurrenceMonthly:
+		// valid
+	default:
+		recurrence = store.RecurrenceNone
+	}
+
 	t := store.Task{
 		ID:          d.ID,
 		Title:       strings.TrimSpace(d.Title),
 		Description: strings.TrimSpace(d.Description),
 		ProjectTag:  strings.TrimSpace(d.ProjectTag),
 		Status:      status,
+		Recurrence:  recurrence,
 	}
 	if t.Title == "" {
 		return store.Task{}, fmt.Errorf("title is required")
