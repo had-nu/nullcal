@@ -131,6 +131,11 @@ func (h *Hub) Serve(ctx context.Context, addr string) error {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/ws", h.handleWS)
 	mux.HandleFunc("/favicon.svg", handleFavicon)
+	// After the GCal OAuth callback is handled by the temporary auth server,
+	// the browser still holds this URL. Redirect any repeat requests to root.
+	mux.HandleFunc("/api/auth/callback/google", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
+	})
 	mux.HandleFunc("/", handleIndex)
 
 	srv := &http.Server{
