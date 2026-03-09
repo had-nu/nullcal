@@ -126,6 +126,7 @@ func runWeb(addr string) error {
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "[gcal] auth failed: %v\n", err)
 		} else {
+			hub.SetGCal(adapter)
 			now := time.Now()
 			events, err := adapter.ListEvents(syncCtx, now.AddDate(0, -1, 0), now.AddDate(0, 3, 0))
 			if err != nil {

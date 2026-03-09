@@ -64,7 +64,7 @@ html,body{height:100%;background:var(--bg);color:var(--fg);font-family:var(--fon
 .time-badge{font-size:11px;color:var(--dim);margin-left:4px;white-space:nowrap;flex-shrink:0}
 
 /* ── TODO ── */
-#todo{flex:1;display:flex;flex-direction:column;overflow:hidden;min-height:0}
+#todo{flex:0.6;display:flex;flex-direction:column;overflow:hidden;min-height:0;max-width:220px}
 #todo.hidden{display:none}
 
 /* ── DETAILS (INSPECTOR) ── */
@@ -311,8 +311,20 @@ html,body{height:100%;background:var(--bg);color:var(--fg);font-family:var(--fon
     <input id="f-desc" placeholder="Optional" maxlength="256">
     <label>Project Tag</label>
     <input id="f-tag" placeholder="wardex / vexil / ..." maxlength="30">
-    <label>Due Date</label>
-    <input id="f-due" placeholder="YYYY-MM-DD" maxlength="10">
+    <div style="display:flex;gap:8px">
+      <div style="flex:1">
+        <label>Due Date</label>
+        <input id="f-due" placeholder="YYYY-MM-DD" maxlength="10">
+      </div>
+      <div style="flex:1">
+        <label>Time (HH:MM)</label>
+        <input id="f-time" type="time" placeholder="HH:MM">
+      </div>
+    </div>
+    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-top:4px">
+      <input type="checkbox" id="f-backlog" style="accent-color:var(--accent);width:14px;height:14px">
+      <span style="font-size:13px;color:var(--dim)">Add directly to Kanban backlog</span>
+    </label>
     <div class="err" id="modal-err"></div>
     <div class="actions">
       <button class="primary" onclick="submitModal()">save</button>
@@ -335,7 +347,7 @@ html,body{height:100%;background:var(--bg);color:var(--fg);font-family:var(--fon
 <script>
 // ── STATE ──────────────────────────────────────────────────────────────────
 let ws = null;
-let state = { tasks: [], routine_blocks: [] };
+let state = { tasks: [], routine_blocks: [], calendar_events: [] };
 let selectedId = null;
 let editId = null;       // null = create mode
 let showTodo = true;
@@ -517,11 +529,13 @@ function renderCalendar() {
 function renderTodo() {
   const list = document.getElementById('todo-list');
   list.innerHTML = '';
-  const active = (state.tasks||[]).filter(t => t.status !== 'done');
+  // Only show tasks with status 'todo' — backlog tasks live in kanban only.
+  const active = (state.tasks||[]).filter(t => t.status === 'todo');
   active.forEach(t => list.appendChild(makeTaskEl(t, { prefix: '-' })));
 }
 
 function renderKanban() {
+  // backlog column: tasks with status 'backlog' only (not 'todo')
   ['backlog','doing','done'].forEach(status => {
     const el = document.getElementById('kan-'+status);
     el.innerHTML = '';
@@ -678,10 +692,12 @@ function toggleKan()  { showKan  = !showKan;  render(); }
 function openCreate() {
   editId = null;
   document.getElementById('modal-title').textContent = 'NEW TASK';
-  document.getElementById('f-title').value = '';
-  document.getElementById('f-desc').value  = '';
-  document.getElementById('f-tag').value   = '';
-  document.getElementById('f-due').value   = '';
+  document.getElementById('f-title').value    = '';
+  document.getElementById('f-desc').value     = '';
+  document.getElementById('f-tag').value      = '';
+  document.getElementById('f-due').value      = '';
+  document.getElementById('f-time').value     = '';
+  document.getElementById('f-backlog').checked = false;
   document.getElementById('modal-err').textContent = '';
   document.getElementById('modal-overlay').classList.add('open');
   setTimeout(() => document.getElementById('f-title').focus(), 50);
@@ -692,10 +708,20 @@ function openEdit(id) {
   if (!t) return;
   editId = id;
   document.getElementById('modal-title').textContent = 'EDIT TASK';
-  document.getElementById('f-title').value = t.title;
-  document.getElementById('f-desc').value  = t.description || '';
-  document.getElementById('f-tag').value   = t.project_tag || '';
-  document.getElementById('f-due').value   = t.due_at ? t.due_at.slice(0,10) : '';
+  document.getElementById('f-title').value    = t.title;
+  document.getElementById('f-desc').value     = t.description || '';
+  document.getElementById('f-tag').value      = t.project_tag || '';
+  const dueDate = t.due_at ? t.due_at.slice(0,10) : '';
+  document.getElementById('f-due').value      = dueDate;
+  // Restore time portion if present
+  if (t.due_at && t.due_at.length > 10) {
+    const d = new Date(t.due_at);
+    const hhmm = String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+    document.getElementById('f-time').value = (hhmm === '00:00') ? '' : hhmm;
+  } else {
+    document.getElementById('f-time').value = '';
+  }
+  document.getElementById('f-backlog').checked = t.status === 'backlog';
   document.getElementById('modal-err').textContent = '';
   document.getElementById('modal-overlay').classList.add('open');
   setTimeout(() => document.getElementById('f-title').focus(), 50);
@@ -706,13 +732,21 @@ function closeModal() {
 }
 
 function submitModal() {
-  const title = document.getElementById('f-title').value.trim();
-  const due   = document.getElementById('f-due').value.trim();
-  const errEl = document.getElementById('modal-err');
+  const title   = document.getElementById('f-title').value.trim();
+  const dueDate = document.getElementById('f-due').value.trim();
+  const dueTime = document.getElementById('f-time').value.trim();
+  const toBacklog = document.getElementById('f-backlog').checked;
+  const errEl   = document.getElementById('modal-err');
 
   if (!title) { errEl.textContent = '! title is required'; return; }
-  if (due && !/^\d{4}-\d{2}-\d{2}$/.test(due)) {
+  if (dueDate && !/^\d{4}-\d{2}-\d{2}$/.test(dueDate)) {
     errEl.textContent = '! due date must be YYYY-MM-DD'; return;
+  }
+
+  // Combine date + time into ISO string if both provided.
+  let dueAt = null;
+  if (dueDate) {
+    dueAt = dueTime ? dueDate + 'T' + dueTime + ':00' : dueDate;
   }
 
   const task = {
@@ -720,7 +754,10 @@ function submitModal() {
     title,
     description: document.getElementById('f-desc').value.trim(),
     project_tag: document.getElementById('f-tag').value.trim(),
-    due_at:      due || null,
+    due_at:      dueAt,
+    // On create: 'backlog' if checkbox; 'todo' otherwise.
+    // On edit: preserve existing status (backend decides).
+    status:      editId ? undefined : (toBacklog ? 'backlog' : 'todo'),
   };
 
   send({ type: editId ? 'update' : 'create', task });
@@ -784,18 +821,18 @@ document.addEventListener('keydown', e => {
     case 'e': { const t = selectedTask(); if(t) openEdit(t.id); break; }
     case 'x': {
       const t = selectedTask();
-      if (t) send({ type:'setStatus', id:t.id, status: t.status==='done' ? 'backlog' : 'done' });
+      if (t) send({ type:'setStatus', id:t.id, status: t.status==='done' ? 'todo' : 'done' });
       break;
     }
     case 'd': {
       const t = selectedTask();
-      if (t) send({ type:'setStatus', id:t.id, status: t.status==='doing' ? 'backlog' : 'doing' });
+      if (t) send({ type:'setStatus', id:t.id, status: t.status==='doing' ? 'todo' : 'doing' });
       break;
     }
     case 'm': case 'Enter': {
       const t = selectedTask();
       if (t) {
-        const next = {backlog:'doing',doing:'done',done:'backlog'}[t.status]||'backlog';
+        const next = {todo:'backlog',backlog:'doing',doing:'done',done:'todo'}[t.status]||'todo';
         send({ type:'setStatus', id:t.id, status:next });
       }
       break;

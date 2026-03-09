@@ -25,10 +25,10 @@ func (s *Store) CreateTask(t *Task) error {
 	t.CreatedAt = now
 
 	_, err := s.db.Exec(`
-		INSERT INTO tasks (id, title, description, project_tag, status, due_at, completed_at, recurrence, created_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		INSERT INTO tasks (id, title, description, project_tag, status, due_at, completed_at, recurrence, created_at, gcal_event_id)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		t.ID, t.Title, t.Description, t.ProjectTag, t.Status,
-		nullTime(t.DueAt), nullTime(t.CompletedAt), string(t.Recurrence), t.CreatedAt,
+		nullTime(t.DueAt), nullTime(t.CompletedAt), string(t.Recurrence), t.CreatedAt, nullString(t.GCalEventID),
 	)
 	if err != nil {
 		return fmt.Errorf("inserting task: %w", err)
@@ -40,7 +40,7 @@ func (s *Store) CreateTask(t *Task) error {
 // GetTask retrieves a single task by ID.
 func (s *Store) GetTask(id string) (*Task, error) {
 	row := s.db.QueryRow(`
-		SELECT id, title, description, project_tag, status, due_at, completed_at, recurrence, created_at
+		SELECT id, title, description, project_tag, status, due_at, completed_at, recurrence, created_at, gcal_event_id
 		FROM tasks WHERE id = ?`, id)
 
 	t, err := scanTask(row)
@@ -53,7 +53,7 @@ func (s *Store) GetTask(id string) (*Task, error) {
 // ListTasks returns all tasks ordered by creation date descending.
 func (s *Store) ListTasks() ([]Task, error) {
 	rows, err := s.db.Query(`
-		SELECT id, title, description, project_tag, status, due_at, completed_at, recurrence, created_at
+		SELECT id, title, description, project_tag, status, due_at, completed_at, recurrence, created_at, gcal_event_id
 		FROM tasks ORDER BY created_at DESC`)
 	if err != nil {
 		return nil, fmt.Errorf("listing tasks: %w", err)
@@ -70,7 +70,7 @@ func (s *Store) ListTasksByStatus(status TaskStatus) ([]Task, error) {
 	}
 
 	rows, err := s.db.Query(`
-		SELECT id, title, description, project_tag, status, due_at, completed_at, recurrence, created_at
+		SELECT id, title, description, project_tag, status, due_at, completed_at, recurrence, created_at, gcal_event_id
 		FROM tasks WHERE status = ? ORDER BY created_at DESC`, status)
 	if err != nil {
 		return nil, fmt.Errorf("listing tasks by status %s: %w", status, err)
@@ -86,7 +86,7 @@ func (s *Store) ListTasksByDate(date time.Time) ([]Task, error) {
 	end := start.Add(24 * time.Hour)
 
 	rows, err := s.db.Query(`
-		SELECT id, title, description, project_tag, status, due_at, completed_at, recurrence, created_at
+		SELECT id, title, description, project_tag, status, due_at, completed_at, recurrence, created_at, gcal_event_id
 		FROM tasks WHERE due_at >= ? AND due_at < ? ORDER BY due_at ASC`, start, end)
 	if err != nil {
 		return nil, fmt.Errorf("listing tasks by date: %w", err)
@@ -104,10 +104,10 @@ func (s *Store) UpdateTask(t *Task) error {
 
 	result, err := s.db.Exec(`
 		UPDATE tasks SET title = ?, description = ?, project_tag = ?, status = ?,
-		due_at = ?, completed_at = ?, recurrence = ?
+		due_at = ?, completed_at = ?, recurrence = ?, gcal_event_id = ?
 		WHERE id = ?`,
 		t.Title, t.Description, t.ProjectTag, t.Status,
-		nullTime(t.DueAt), nullTime(t.CompletedAt), string(t.Recurrence), t.ID,
+		nullTime(t.DueAt), nullTime(t.CompletedAt), string(t.Recurrence), nullString(t.GCalEventID), t.ID,
 	)
 	if err != nil {
 		return fmt.Errorf("updating task: %w", err)
@@ -178,11 +178,11 @@ func (s *Store) SetTaskStatus(id string, status TaskStatus) error {
 func scanTask(row *sql.Row) (*Task, error) {
 	var t Task
 	var dueAt, completedAt sql.NullTime
-	var recurrence sql.NullString
+	var recurrence, gcalEventID sql.NullString
 
 	err := row.Scan(
 		&t.ID, &t.Title, &t.Description, &t.ProjectTag, &t.Status,
-		&dueAt, &completedAt, &recurrence, &t.CreatedAt,
+		&dueAt, &completedAt, &recurrence, &t.CreatedAt, &gcalEventID,
 	)
 	if err != nil {
 		return nil, err
@@ -197,6 +197,9 @@ func scanTask(row *sql.Row) (*Task, error) {
 	if recurrence.Valid {
 		t.Recurrence = Recurrence(recurrence.String)
 	}
+	if gcalEventID.Valid {
+		t.GCalEventID = &gcalEventID.String
+	}
 
 	return &t, nil
 }
@@ -207,11 +210,11 @@ func scanTasks(rows *sql.Rows) ([]Task, error) {
 	for rows.Next() {
 		var t Task
 		var dueAt, completedAt sql.NullTime
-		var recurrence sql.NullString
+		var recurrence, gcalEventID sql.NullString
 
 		err := rows.Scan(
 			&t.ID, &t.Title, &t.Description, &t.ProjectTag, &t.Status,
-			&dueAt, &completedAt, &recurrence, &t.CreatedAt,
+			&dueAt, &completedAt, &recurrence, &t.CreatedAt, &gcalEventID,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("scanning task row: %w", err)
@@ -226,6 +229,9 @@ func scanTasks(rows *sql.Rows) ([]Task, error) {
 		if recurrence.Valid {
 			t.Recurrence = Recurrence(recurrence.String)
 		}
+		if gcalEventID.Valid {
+			t.GCalEventID = &gcalEventID.String
+		}
 
 		tasks = append(tasks, t)
 	}
@@ -239,4 +245,11 @@ func nullTime(t *time.Time) sql.NullTime {
 		return sql.NullTime{}
 	}
 	return sql.NullTime{Time: *t, Valid: true}
+}
+
+func nullString(s *string) sql.NullString {
+	if s == nil {
+		return sql.NullString{}
+	}
+	return sql.NullString{String: *s, Valid: true}
 }

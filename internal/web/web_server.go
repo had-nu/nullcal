@@ -19,6 +19,7 @@ import (
 
 	"github.com/had-nu/nullcal/internal/config"
 	"github.com/had-nu/nullcal/internal/store"
+	"github.com/had-nu/nullcal/internal/sync/gcal"
 )
 
 const (
@@ -35,6 +36,7 @@ type Hub struct {
 
 	store  *store.Store
 	config *config.Config
+	gcal   *gcal.Adapter // nil when GCal sync is not enabled
 }
 
 // NewHub creates a Hub ready to accept connections.
@@ -45,6 +47,9 @@ func NewHub(s *store.Store, cfg *config.Config) *Hub {
 		config:  cfg,
 	}
 }
+
+// SetGCal attaches an authenticated GCal adapter for bidirectional sync.
+func (h *Hub) SetGCal(a *gcal.Adapter) { h.gcal = a }
 
 // register adds a client to the hub.
 func (h *Hub) register(c *client) {
