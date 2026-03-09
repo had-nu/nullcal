@@ -352,16 +352,24 @@ html,body{height:100%;background:var(--bg);color:var(--fg);font-family:var(--fon
     <input id="f-title" placeholder="Task title" maxlength="100">
     <label>Description</label>
     <input id="f-desc" placeholder="Optional" maxlength="256">
-    <label>Project Tag</label>
-    <input id="f-tag" placeholder="wardex / vexil / ..." maxlength="30">
+    <div style="display:flex;gap:8px">
+      <div style="flex:1">
+        <label>Project Tag</label>
+        <input id="f-tag" placeholder="wardex / ..." maxlength="30">
+      </div>
+      <div style="flex:0.6">
+        <label>Pomodoros</label>
+        <input id="f-pomodoros" type="number" min="1" max="20" value="1" style="text-align:center">
+      </div>
+    </div>
     <div style="display:flex;gap:8px">
       <div style="flex:1">
         <label>Due Date</label>
         <input id="f-due" type="date">
       </div>
       <div style="flex:1">
-        <label>Time (HH:MM)</label>
-        <input id="f-time" type="time" placeholder="HH:MM">
+        <label>Time</label>
+        <input id="f-time" type="time">
       </div>
       <div style="flex:1">
         <label>Recurrence</label>
@@ -371,10 +379,6 @@ html,body{height:100%;background:var(--bg);color:var(--fg);font-family:var(--fon
           <option value="weekly">Weekly</option>
           <option value="monthly">Monthly</option>
         </select>
-      </div>
-      <div style="flex:0.8">
-        <label>Pomodoros</label>
-        <input id="f-pomodoros" type="number" min="1" max="20" value="1" style="text-align:center">
       </div>
     </div>
     <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-top:4px">
