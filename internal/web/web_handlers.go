@@ -2,6 +2,7 @@ package web
 
 import (
 	"bufio"
+	"context"
 	"crypto/sha1" //nolint:gosec // required by RFC 6455
 	"encoding/base64"
 	"encoding/json"
@@ -33,11 +34,14 @@ type inboundMsg struct {
 
 // taskDTO is the shape the browser uses to describe a task on create/update.
 type taskDTO struct {
-	ID          string  `json:"id"`
-	Title       string  `json:"title"`
-	Description string  `json:"description"`
-	ProjectTag  string  `json:"project_tag"`
-	DueAt       *string `json:"due_at"` // "YYYY-MM-DD" or null
+	ID          string           `json:"id"`
+	Title       string           `json:"title"`
+	Description string           `json:"description"`
+	ProjectTag  string           `json:"project_tag"`
+	DueAt       *string          `json:"due_at"` // "YYYY-MM-DD[THH:MM:SS]" or null
+	Status      store.TaskStatus `json:"status"` // optional; defaults to 'todo' on create
+	Recurrence  string           `json:"recurrence"`
+	Pomodoros   int              `json:"pomodoros"`
 }
 
 // handleWS upgrades the connection to WebSocket without external dependencies,
@@ -169,6 +173,14 @@ func (h *Hub) handleAction(msg inboundMsg) error {
 		if err != nil {
 			return fmt.Errorf("create: %w", err)
 		}
+		if h.gcal != nil && t.DueAt != nil {
+			extID, err := h.gcal.CreateEvent(context.Background(), t.Title, t.Description, *t.DueAt, *t.DueAt)
+			if err == nil && extID != "" {
+				t.GCalEventID = &extID
+			} else if err != nil {
+				slog.Error("gcal create event failed", "err", err)
+			}
+		}
 		return h.store.CreateTask(&t)
 
 	case "update":
@@ -179,11 +191,42 @@ func (h *Hub) handleAction(msg inboundMsg) error {
 		if err != nil {
 			return fmt.Errorf("update: %w", err)
 		}
+		old, err := h.store.GetTask(t.ID)
+		if err == nil {
+			t.GCalEventID = old.GCalEventID
+		}
+		if h.gcal != nil {
+			if t.DueAt != nil {
+				if t.GCalEventID != nil {
+					err = h.gcal.UpdateEvent(context.Background(), *t.GCalEventID, t.Title, t.Description, *t.DueAt, *t.DueAt)
+					if err != nil {
+						slog.Error("gcal update event failed", "err", err)
+					}
+				} else {
+					extID, err := h.gcal.CreateEvent(context.Background(), t.Title, t.Description, *t.DueAt, *t.DueAt)
+					if err == nil && extID != "" {
+						t.GCalEventID = &extID
+					} else if err != nil {
+						slog.Error("gcal create event failed during update", "err", err)
+					}
+				}
+			} else if t.GCalEventID != nil {
+				// Due date cleared; delete from GCal
+				_ = h.gcal.DeleteEvent(context.Background(), *t.GCalEventID)
+				t.GCalEventID = nil
+			}
+		}
 		return h.store.UpdateTask(&t)
 
 	case "delete":
 		if msg.ID == "" {
 			return fmt.Errorf("delete: missing id")
+		}
+		if h.gcal != nil {
+			old, err := h.store.GetTask(msg.ID)
+			if err == nil && old.GCalEventID != nil {
+				_ = h.gcal.DeleteEvent(context.Background(), *old.GCalEventID)
+			}
 		}
 		return h.store.DeleteTask(msg.ID)
 
@@ -200,20 +243,44 @@ func (h *Hub) handleAction(msg inboundMsg) error {
 
 // dtoToTask converts a taskDTO from the browser into a store.Task.
 func dtoToTask(d *taskDTO) (store.Task, error) {
+	status := d.Status
+	if !store.ValidTaskStatus(status) {
+		status = store.TaskStatusTodo // default for new tasks
+	}
+	
+	recurrence := store.Recurrence(d.Recurrence)
+	switch recurrence {
+	case store.RecurrenceDaily, store.RecurrenceWeekly, store.RecurrenceMonthly:
+		// valid
+	default:
+		recurrence = store.RecurrenceNone
+	}
+
 	t := store.Task{
 		ID:          d.ID,
 		Title:       strings.TrimSpace(d.Title),
 		Description: strings.TrimSpace(d.Description),
 		ProjectTag:  strings.TrimSpace(d.ProjectTag),
-		Status:      store.TaskStatusBacklog,
+		Status:      status,
+		Recurrence:  recurrence,
+		Pomodoros:   d.Pomodoros,
+	}
+	if t.Pomodoros < 1 {
+		t.Pomodoros = 1
 	}
 	if t.Title == "" {
 		return store.Task{}, fmt.Errorf("title is required")
 	}
 	if d.DueAt != nil && *d.DueAt != "" {
-		due, err := time.Parse("2006-01-02", *d.DueAt)
+		var due time.Time
+		var err error
+		if strings.Contains(*d.DueAt, "T") {
+			due, err = time.Parse("2006-01-02T15:04:05", *d.DueAt)
+		} else {
+			due, err = time.Parse("2006-01-02", *d.DueAt)
+		}
 		if err != nil {
-			return store.Task{}, fmt.Errorf("invalid due_at format (expected YYYY-MM-DD): %w", err)
+			return store.Task{}, fmt.Errorf("invalid due_at format: %w", err)
 		}
 		t.DueAt = &due
 	}

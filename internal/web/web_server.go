@@ -19,6 +19,7 @@ import (
 
 	"github.com/had-nu/nullcal/internal/config"
 	"github.com/had-nu/nullcal/internal/store"
+	"github.com/had-nu/nullcal/internal/sync/gcal"
 )
 
 const (
@@ -35,6 +36,7 @@ type Hub struct {
 
 	store  *store.Store
 	config *config.Config
+	gcal   *gcal.Adapter // nil when GCal sync is not enabled
 }
 
 // NewHub creates a Hub ready to accept connections.
@@ -45,6 +47,9 @@ func NewHub(s *store.Store, cfg *config.Config) *Hub {
 		config:  cfg,
 	}
 }
+
+// SetGCal attaches an authenticated GCal adapter for bidirectional sync.
+func (h *Hub) SetGCal(a *gcal.Adapter) { h.gcal = a }
 
 // register adds a client to the hub.
 func (h *Hub) register(c *client) {
@@ -92,12 +97,26 @@ func (h *Hub) buildStateMessage() ([]byte, error) {
 		return nil, fmt.Errorf("listing tasks: %w", err)
 	}
 
+	calEvents, err := h.store.ListCalendarEvents()
+	if err != nil {
+		return nil, fmt.Errorf("listing calendar events: %w", err)
+	}
+
 	type routineBlockDTO struct {
 		Weekday   int    `json:"weekday"` // 0=Sun … 6=Sat
 		StartTime string `json:"start_time"`
 		EndTime   string `json:"end_time"`
 		Label     string `json:"label"`
 		Tag       string `json:"project_tag"`
+	}
+
+	type calEventDTO struct {
+		ExternalID  string `json:"external_id"`
+		Source      string `json:"source"`
+		Title       string `json:"title"`
+		StartAt     string `json:"start_at"`
+		EndAt       string `json:"end_at"`
+		Description string `json:"description"`
 	}
 
 	blocks := make([]routineBlockDTO, len(h.config.RoutineBlocks))
@@ -111,16 +130,30 @@ func (h *Hub) buildStateMessage() ([]byte, error) {
 		}
 	}
 
+	evDTOs := make([]calEventDTO, len(calEvents))
+	for i, e := range calEvents {
+		evDTOs[i] = calEventDTO{
+			ExternalID:  e.ExternalID,
+			Source:      e.Source,
+			Title:       e.Title,
+			StartAt:     e.StartAt.Format(time.RFC3339),
+			EndAt:       e.EndAt.Format(time.RFC3339),
+			Description: e.Description,
+		}
+	}
+
 	payload := struct {
-		Type          string            `json:"type"`
-		Tasks         []store.Task      `json:"tasks"`
-		RoutineBlocks []routineBlockDTO `json:"routine_blocks"`
-		ServerTime    string            `json:"server_time"`
+		Type           string         `json:"type"`
+		Tasks          []store.Task   `json:"tasks"`
+		CalendarEvents []calEventDTO  `json:"calendar_events"`
+		RoutineBlocks  []routineBlockDTO `json:"routine_blocks"`
+		ServerTime     string         `json:"server_time"`
 	}{
-		Type:          "state",
-		Tasks:         tasks,
-		RoutineBlocks: blocks,
-		ServerTime:    time.Now().Format(time.RFC3339),
+		Type:           "state",
+		Tasks:          tasks,
+		CalendarEvents: evDTOs,
+		RoutineBlocks:  blocks,
+		ServerTime:     time.Now().Format(time.RFC3339),
 	}
 
 	return json.Marshal(payload)
@@ -131,6 +164,11 @@ func (h *Hub) Serve(ctx context.Context, addr string) error {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/ws", h.handleWS)
 	mux.HandleFunc("/favicon.svg", handleFavicon)
+	// After the GCal OAuth callback is handled by the temporary auth server,
+	// the browser still holds this URL. Redirect any repeat requests to root.
+	mux.HandleFunc("/api/auth/callback/google", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
+	})
 	mux.HandleFunc("/", handleIndex)
 
 	srv := &http.Server{

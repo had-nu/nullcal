@@ -8,6 +8,7 @@ type TaskStatus string
 
 // TaskStatusBacklog and related constants define the kanban workflow states.
 const (
+	TaskStatusTodo    TaskStatus = "todo"
 	TaskStatusBacklog TaskStatus = "backlog"
 	TaskStatusDoing   TaskStatus = "doing"
 	TaskStatusDone    TaskStatus = "done"
@@ -16,7 +17,7 @@ const (
 // ValidTaskStatus reports whether s is a recognized task status.
 func ValidTaskStatus(s TaskStatus) bool {
 	switch s {
-	case TaskStatusBacklog, TaskStatusDoing, TaskStatusDone:
+	case TaskStatusTodo, TaskStatusBacklog, TaskStatusDoing, TaskStatusDone:
 		return true
 	}
 	return false
@@ -45,6 +46,8 @@ type Task struct {
 	CompletedAt *time.Time `json:"completed_at"`
 	Recurrence  Recurrence `json:"recurrence"`
 	CreatedAt   time.Time  `json:"created_at"`
+	GCalEventID *string    `json:"gcal_event_id,omitempty"`
+	Pomodoros   int        `json:"pomodoros"`
 }
 
 // CalendarEvent is the normalised representation of an external event.
