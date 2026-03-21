@@ -4,7 +4,7 @@ go 1.25.0
 
 require (
 	github.com/google/uuid v1.6.0
-	github.com/mattn/go-sqlite3 v1.14.34
+	github.com/mattn/go-sqlite3 v1.14.37
 	github.com/spf13/cobra v1.10.2
 	golang.org/x/oauth2 v0.36.0
 	google.golang.org/api v0.269.0
